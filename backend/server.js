@@ -5,6 +5,7 @@
  * Also serves static frontend (/) and admin panel (/admin/)
  */
 
+try { require('dotenv').config(); } catch (e) { /* dotenv optional in prod hosts like Render */ }
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -49,13 +50,17 @@ const FRONTEND_DIR = path.join(__dirname, 'public', 'frontend');
 /* ── Google Apps Script email notification ── */
 async function notifyOrderByEmail(order) {
   const url = process.env.APPS_SCRIPT_URL;
-  if (!url) return;
+  if (!url) { console.warn('APPS_SCRIPT_URL not set — order mail skipped'); return; }
+  if (typeof fetch !== 'function') { console.error('global fetch missing — need Node 18+'); return; }
   try {
-    await fetch(url, {
+    const payload = Object.assign({ type: 'order' }, order);
+    const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(order)
+      body: JSON.stringify(payload),
+      redirect: 'follow'
     });
+    console.log('Order mail webhook ->', r.status);
   } catch (e) {
     console.error('Order email webhook failed:', e.message);
   }
