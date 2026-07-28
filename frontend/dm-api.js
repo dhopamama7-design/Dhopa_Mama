@@ -31,7 +31,7 @@
      ওভাররাইড করা যায় (যেমন লোকাল টেস্টিং এ)। */
   if (window.DM_API_BASE) API_BASE = window.DM_API_BASE;
   API_BASE = String(API_BASE).replace(/\/+$/, '');
-  window.API_BASE = API_BASE;
+  window.API_BASE = API_BASE;   
 
   var KEYS = ['categories', 'products', 'services', 'settings'];
   var CACHE_PREFIX = 'dm_snapshot_';
