@@ -35,7 +35,7 @@
 
   var KEYS = ['categories', 'products', 'services', 'settings'];
   var CACHE_PREFIX = 'dm_snapshot_';
-  var POLL_MS = 10000;  
+  var POLL_MS = 10000;    
 
   window.__API_DATA = window.__API_DATA || {};
 
