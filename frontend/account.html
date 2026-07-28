@@ -713,7 +713,7 @@ a{color:inherit}
     </div>
 
     <div class="auth-hero-foot">
-      <span>©</span> ধোপা মামা, dhopamama.com — সব সময় আপনার পাশে
+      <span>©</span> ধোপা মামা, dhopamama.shop — সব সময় আপনার পাশে
     </div>
   </aside>
 
@@ -878,7 +878,7 @@ a{color:inherit}
 </div>
 
 <script>
-window.API_BASE = window.API_BASE || 'https://dhopa-mama-j75g.onrender.com';
+window.API_BASE = window.API_BASE || '';
 var AUTH_KEY = 'dm_auth';
 var mode = 'signin';
 
@@ -1688,7 +1688,7 @@ document.getElementById('forgotOverlay').addEventListener('click', function(e){
           </li>
           <li class="site-footer-contact-item">
             <div class="site-footer-contact-icon"><i class="far fa-envelope"></i></div>
-            <span>corporate@dhopamama.com</span>
+            <span>corporate@dhopamama.shop</span>
           </li>
           <li class="site-footer-contact-item">
             <div class="site-footer-contact-icon"><i class="fas fa-phone-alt"></i></div>
@@ -1704,7 +1704,7 @@ document.getElementById('forgotOverlay').addEventListener('click', function(e){
     </svg>
   </div>
   <div class="site-footer-bottom">
-    ধোপা মামা (Dhopa Mama) — ফরিদপুর সদর, ফরিদপুরে ফ্রি হোম পিকআপ লন্ড্রি ও কাপড় ধোয়ার সার্ভিস, dhopamama.com<br>
+    ধোপা মামা (Dhopa Mama) — ফরিদপুর সদর, ফরিদপুরে ফ্রি হোম পিকআপ লন্ড্রি ও কাপড় ধোয়ার সার্ভিস, dhopamama.shop<br>
     Copyright © Dhopa Mama 2026 – All Rights Reserved |
   </div>
 </footer>
@@ -1749,8 +1749,30 @@ document.getElementById('forgotOverlay').addEventListener('click', function(e){
   var activeTab = 'all';
 
   function money(n){ return '৳' + Number(n||0).toLocaleString('en-IN'); }
-  function loadOrders(){ try{ return JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]'); }catch(e){ return []; } }
+  var _pfApiOrders = null; // cache from API
+  function loadOrders(){
+    if (_pfApiOrders !== null) return _pfApiOrders;
+    try{ return JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]'); }catch(e){ return []; }
+  }
   function saveOrders(list){ try{ localStorage.setItem(ORDERS_KEY, JSON.stringify(list)); }catch(e){} }
+  function fetchAndRenderOrders(){
+    var s = localStorage.getItem('dm_auth') || localStorage.getItem('dmUser') || '';
+    var token = '';
+    try{ var p = JSON.parse(s); token = (p && p.token) || ''; }catch(e){}
+    if (!token) return;
+    fetch(window.API_BASE + '/api/my-orders', {
+      headers: { 'Authorization': 'Bearer ' + token },
+      cache: 'no-store'
+    })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(data){
+      if (!data || !Array.isArray(data)) return;
+      _pfApiOrders = data; // use server data (has admin-updated status)
+      renderStats();
+      renderOrderList();
+    })
+    .catch(function(){});
+  }
   function loadAddresses(){ try{ return JSON.parse(localStorage.getItem(ADDR_KEY)||'[]'); }catch(e){ return []; } }
   function saveAddresses(a){ try{ localStorage.setItem(ADDR_KEY, JSON.stringify(a)); }catch(e){} }
 
@@ -1857,6 +1879,8 @@ document.getElementById('forgotOverlay').addEventListener('click', function(e){
 
     renderStats();
     renderOrderList();
+    // সার্ভার থেকে অর্ডার লোড করো — admin আপডেটেড স্ট্যাটাস দেখাবে
+    fetchAndRenderOrders();
   };
 
   function renderStats(){

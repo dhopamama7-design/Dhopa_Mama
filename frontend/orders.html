@@ -590,9 +590,17 @@ function goBackFromCartPopup() {
 /* ===================== Data ===================== */
 var ORDERS_KEY = 'dmOrders';
 var DEFAULT_ITEM_ICON = '<svg viewBox="0 0 48 48" fill="none" stroke="#997D36" stroke-width="1.6"><rect x="10" y="12" width="28" height="26"/><path d="M16 12v-2a4 4 0 0 1 8 0v2"/></svg>';
+var API_BASE = window.API_BASE || '';
 
 function currentUserContact(){
   try{ var u = JSON.parse(localStorage.getItem('dmUser')||'null'); return u && (u.contact||u.email||u.mobile) || null; }catch(e){ return null; }
+}
+function getAuthToken(){
+  try{
+    var s = localStorage.getItem('dm_auth') || localStorage.getItem('dmUser');
+    if(s){ var p = JSON.parse(s); return p && (p.token || '') || ''; }
+  }catch(e){}
+  return '';
 }
 function normalizeOrder(o){
   var iso = o.paymentDateISO || (o.createdAt ? String(o.createdAt).slice(0,10) : (o.date && /^\d{4}-\d{2}-\d{2}/.test(o.date) ? o.date.slice(0,10) : ''));
@@ -600,9 +608,10 @@ function normalizeOrder(o){
   if (!display && iso){
     try{ display = new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ display = iso; }
   }
-  var st = (o.status||'processing').toLowerCase();
+  var st = (o.status||'Pending').toLowerCase();
   if (st==='delivered'||st==='completed') st='completed';
   else if (st==='cancelled'||st==='canceled') st='cancelled';
+  else if (st==='pending'||st==='processing') st='processing';
   else st='processing';
   var items = (o.items||[]).map(function(it){
     return {
@@ -618,26 +627,50 @@ function normalizeOrder(o){
   });
   return {
     id: String(o.id||o.orderId||Date.now()).replace(/[^A-Za-z0-9]/g,'').slice(-8) || String(Date.now()).slice(-8),
+    rawId: o.id || '',
     paymentDateISO: iso || '',
     paymentDateDisplay: display || '—',
     status: st,
+    total: o.total || 0,
     userContact: o.userContact || null,
     items: items
   };
 }
-function loadOrders(){
+function loadOrdersFromLocalStorage(){
   var raw;
   try{ raw = JSON.parse(localStorage.getItem(ORDERS_KEY)||'[]'); }catch(e){ raw = []; }
   if (!Array.isArray(raw)) raw = [];
   var uc = currentUserContact();
   var list = raw.map(normalizeOrder);
-  // If we know the current user, only show their orders (fallback: show all when no user tag exists)
+
   if (uc){
     var owned = list.filter(function(o){ return o.userContact && String(o.userContact) === String(uc); });
     var untagged = list.filter(function(o){ return !o.userContact; });
     list = owned.concat(untagged);
   }
   return list;
+}
+function loadOrders(){
+  return loadOrdersFromLocalStorage();
+}
+
+/* ===================== API অর্ডার লোড (সার্ভার থেকে) ===================== */
+function fetchOrdersFromAPI(callback){
+  var token = getAuthToken();
+  if (!token){ if(callback) callback(false); return; }
+  fetch(API_BASE + '/api/my-orders', {
+    headers: { 'Authorization': 'Bearer ' + token },
+    cache: 'no-store'
+  })
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(data){
+    if (!data || !Array.isArray(data)){ if(callback) callback(false); return; }
+    ORDERS = data.map(normalizeOrder);
+    ORDERS.forEach(recomputeStatus);
+    render();
+    if(callback) callback(true);
+  })
+  .catch(function(){ if(callback) callback(false); });
 }
 
 let ORDERS = loadOrders();
@@ -884,6 +917,19 @@ function showToast(text){
 
 /* ===================== Init ===================== */
 render();
+// সার্ভার থেকে অর্ডার লোড করো — admin-updated স্ট্যাটাস দেখাবে
+fetchOrdersFromAPI(function(ok){
+  if(!ok){
+    // API না পেলে localStorage থেকে দেখাও
+    ORDERS = loadOrdersFromLocalStorage();
+    ORDERS.forEach(recomputeStatus);
+    render();
+  }
+});
+// প্রতি ৩০ সেকেন্ডে স্বয়ংক্রিয় রিফ্রেশ — admin স্ট্যাটাস আপডেট সঙ্গে সঙ্গে দেখাবে
+setInterval(function(){
+  fetchOrdersFromAPI(null);
+}, 30000);
 </script>
 
 <!-- ===== Site Footer ===== -->
@@ -925,7 +971,7 @@ render();
           </li>
           <li class="footer-contact-item">
             <div class="footer-contact-icon"><i class="far fa-envelope"></i></div>
-            <span>corporate@dhopamama.com</span>
+            <span>corporate@dhopamama.shop</span>
           </li>
           <li class="footer-contact-item">
             <div class="footer-contact-icon"><i class="fas fa-phone-alt"></i></div>
@@ -941,7 +987,7 @@ render();
     </svg>
   </div>
   <div class="footer-bottom">
-    ধোপা মামা (Dhopa Mama) — ফরিদপুর সদর, ফরিদপুরে ফ্রি হোম পিকআপ লন্ড্রি ও কাপড় ধোয়ার সার্ভিস, dhopamama.com<br>
+    ধোপা মামা (Dhopa Mama) — ফরিদপুর সদর, ফরিদপুরে ফ্রি হোম পিকআপ লন্ড্রি ও কাপড় ধোয়ার সার্ভিস, dhopamama.shop<br>
     Copyright © Dhopa Mama 2026 – All Rights Reserved |
   </div>
 </footer>

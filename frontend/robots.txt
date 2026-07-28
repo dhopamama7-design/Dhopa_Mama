@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /admin.html
 Disallow: /api/
 
-Sitemap: https://dhopamama.com/sitemap.xml
+Sitemap: https://dhopamama.shop/sitemap.xml
