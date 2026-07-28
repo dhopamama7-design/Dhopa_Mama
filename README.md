@@ -1,49 +1,35 @@
 # Dhopa Mama — Fixed Build
 
-## 🐞 চিহ্নিত সমস্যা ও সমাধান
+## এই আপডেটে যা ঠিক করা হয়েছে
+1. **`products.findOneAndUpdate() buffering timed out after 10000ms` সমস্যা:**
+   Mongoose এর `bufferCommands` বন্ধ করা হয়েছে। এখন MongoDB সংযোগ না থাকলে
+   ১০ সেকেন্ড অপেক্ষা না করে সাথে সাথে পরিষ্কার বাংলা মেসেজ দেখাবে —
+   *"ডাটাবেস সংযোগ নেই — Atlas এর Network Access ও MONGODB_URI চেক করুন।"*
+2. **অটো-রিকানেক্ট:** MongoDB সংযোগ ফেল করলে exponential backoff দিয়ে
+   বার বার চেষ্টা করবে (৩s → ৬s → … → ৩০s)।
+3. **ডিফল্ট ক্যাটাগরি/পণ্য/সার্ভিস অটো-সীড:** সংযোগ সফল হলেই যদি
+   `products` / `categories` / `services` collection খালি থাকে,
+   `backend/defaults.js` থেকে সবকিছু (৬ ক্যাটাগরি, ২১ পণ্য, ৬ সার্ভিস)
+   MongoDB তে insert হয়ে যাবে। এডমিন প্যানেল থেকে দাম বদলালে সেটাই
+   MongoDB তে সেভ হবে ও ফ্রন্টএন্ডে দেখাবে।
+4. **হেলথ endpoint** (`/api/health`) এখন Mongo status ও শেষ error দেখায়।
+5. **`POST /api/admin/seed-defaults`** — এডমিন টোকেন দিয়ে ম্যানুয়ালি
+   ডিফল্ট সীড করার endpoint।
 
-| # | সমস্যা | সমাধান |
-|---|--------|--------|
-| 1 | `backend/.env` এ `MONGODB_URI=mongodb+srv://<db_username>:...` — placeholder এখনও ছিল, তাই MongoDB connect হত না → admin এ পণ্য যোগ/দাম পরিবর্তন কিছুই save হত না | `.env` এ সঠিক username বসিয়ে দেওয়া হয়েছে (`dhopamama`)। **যদি আপনার Atlas ইউজারনেম অন্য হয়, `.env` এবং Render dashboard এর `MONGODB_URI` variable এ সেটি বসান।** |
-| 2 | `ALLOWED_ORIGINS=ALLOWED_ORIGINS=...` (দুইবার prefix) | পরিষ্কার করা হয়েছে |
-| 3 | `server.js` এ `dotenv` load করা হয়নি — local run এ .env উপেক্ষিত হত | `require('dotenv').config()` যোগ করা হয়েছে; `dotenv` package dependency তে যোগ |
-| 4 | `google app script` ফাইল সম্পূর্ণ **খালি** ছিল — order/OTP mail কখনো যেত না | `google_apps_script/Code.gs` এ সম্পূর্ণ কার্যকর script দেওয়া হয়েছে (order + OTP উভয় support) |
-| 5 | `notifyOrderByEmail` payload এ কোনো `type` marker ছিল না — Apps Script order/OTP আলাদা করতে পারত না | payload এ `type: 'order'` যোগ; webhook error log এ status code দেখানো হয় |
+## MongoDB Atlas চেকলিস্ট (৫০০ error এলে)
+- **Network Access → IP Allowlist:** `0.0.0.0/0` অ্যাড করুন
+  (Render এর outbound IP আগে থেকে জানা যায় না)।
+- **Database Access → User:** `dhopamama` username + password
+  `backend/.env` এর `MONGODB_URI` এর সাথে মিলিয়ে নিন।
+- **Cluster status:** paused থাকলে Resume করুন।
 
-## 🚀 Deploy চেকলিস্ট
+## Google Apps Script (ইমেইল নোটিফিকেশন)
+`google_apps_script/README.md` অনুসরণ করে deploy করুন এবং
+Render এর `APPS_SCRIPT_URL` env-var সেট করুন।
 
-### Render.com (Backend)
-Render dashboard → **Environment** ট্যাব — নিচের সব variables বসান (`.env` এর মান):
-- `MONGODB_URI` — **এখানে আপনার আসল Atlas ইউজারনেম বসান**
-- `JWT_SECRET`
-- `ADMIN_USERNAME`, `ADMIN_PASSWORD`
-- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-- `APPS_SCRIPT_URL` — নতুন Apps Script deploy করার পর URL বসান
-- `NOTIFY_EMAIL`
-- `ALLOWED_ORIGINS`
-
-Push করার পর Render auto-deploy করবে। Log এ `✅ MongoDB connected` দেখা গেলে পুরো চেইন কাজ করবে।
-
-### MongoDB Atlas
-1. Atlas → Database Access → আপনার user এর সঠিক username ও password নিশ্চিত করুন
-2. Network Access → Render এর IP allow করতে `0.0.0.0/0` (Allow from anywhere) যোগ করুন
-3. Database name `Dhopa_Mama` auto-created হবে প্রথম write এ
-
-### Google Apps Script (Email)
-`google_apps_script/README.md` অনুসরণ করুন — 8 ধাপে হয়ে যাবে।
-
-### Frontend / Admin Panel
-কোনো পরিবর্তন লাগবে না — `dm-api.js` এবং `admin.html` উভয়ই `https://dhopa-mama-ng4d.onrender.com` ব্যবহার করছে।
-
-## 🔁 কাজের ফ্লো (এখন যেভাবে কাজ করবে)
-
-```
-[Admin Panel]  ──PUT /api/products──►  [Express+Mongoose]  ──►  [MongoDB Atlas]
-                                              │
-[Frontend]     ──GET /api/products──►         │
-   (প্রতি 10 সে auto refresh)                 │
-                                              ▼
-[Customer Order] ─POST /api/orders─► [Mongo] ─► [Apps Script webhook] ─► ✉️ Gmail
-```
-
-Admin এ পণ্য বদলালে সঙ্গে সঙ্গে MongoDB তে save হয়, ফ্রন্টএন্ড ১০ সেকেন্ডের মধ্যে auto refresh এ পরিবর্তন দেখাবে। অর্ডার এলে সাথে সাথে `dhopamama7@gmail.com` এ mail যাবে।
+## Deployment
+- Backend: Render.com — root: `backend/`, start: `npm start`,
+  env vars: `MONGODB_URI, JWT_SECRET, ADMIN_USERNAME, ADMIN_PASSWORD,
+  CLOUDINARY_*, APPS_SCRIPT_URL, NOTIFY_EMAIL`
+- Admin panel: Vercel — `admin_panel/admin.html`
+- Frontend: any static host — `frontend/`

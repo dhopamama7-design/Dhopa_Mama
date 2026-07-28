@@ -66,15 +66,43 @@ async function notifyOrderByEmail(order) {
   }
 }
 
-/* ── MongoDB ── */
+/* ── MongoDB ──
+   গুরুত্বপুর্ণ: bufferCommands=false দিলে সংযোগ না থাকলে অপারেশন সাথে সাথে
+   fail হয় — অন্যথায় ১০ সেকেন্ড পরে "buffering timed out" error আসে,
+   যেটা ইউজারকে বুঝতে দেয় না আসল সমস্যা কী (Atlas IP whitelist, ভুল
+   password ইত্যাদি)। এখন সাথে সাথে পরিষ্কার মেসেজ পাওয়া যাবে। */
 mongoose.set('strictQuery', true);
+mongoose.set('bufferCommands', false);
 const MONGODB_URI = process.env.MONGODB_URI;
-if (MONGODB_URI) {
-  mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 15000 })
-    .then(() => console.log('✅ MongoDB connected'))
-    .catch(err => console.error('❌ MongoDB error:', err.message));
-} else {
-  console.warn('⚠️  MONGODB_URI not set — DB features disabled');
+let mongoLastError = null;
+async function connectMongo(retry = 0) {
+  if (!MONGODB_URI) { console.warn('⚠️  MONGODB_URI not set — DB features disabled'); return; }
+  try {
+    await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+    mongoLastError = null;
+    console.log('✅ MongoDB connected');
+    try { await seedDefaultsIfEmpty(); } catch (e) { console.error('Seeding error:', e.message); }
+  } catch (err) {
+    mongoLastError = err.message;
+    console.error('❌ MongoDB error:', err.message);
+    const delay = Math.min(30000, 3000 * Math.pow(2, retry));
+    console.log(`↻ Retrying MongoDB connection in ${Math.round(delay/1000)}s...`);
+    setTimeout(() => connectMongo(retry + 1), delay);
+  }
+}
+connectMongo();
+mongoose.connection.on('disconnected', () => console.warn('⚠️  MongoDB disconnected'));
+mongoose.connection.on('reconnected',  () => console.log('✅ MongoDB reconnected'));
+
+function dbReady() { return mongoose.connection.readyState === 1; }
+function requireDb(_req, res, next) {
+  if (!dbReady()) {
+    return res.status(503).json({
+      error: 'ডাটাবেস সংযোগ নেই — MongoDB Atlas এ Network Access (IP allowlist: 0.0.0.0/0), সঠিক username/password এবং MONGODB_URI environment variable চেক করুন।',
+      detail: mongoLastError || 'not connected'
+    });
+  }
+  next();
 }
 
 /* ── Schemas ── */
@@ -90,6 +118,32 @@ const Settings   = mongoose.model('Settings', new mongoose.Schema({
   key:  { type: String, unique: true, default: 'main' },
   data: { type: mongoose.Schema.Types.Mixed, default: { bkash: '01700-000000', nagad: '01800-000000' } }
 }, { timestamps: true }), 'settings');
+
+/* ── Seed default categories / products / services when DB is empty ── */
+async function seedDefaultsIfEmpty() {
+  let defaults;
+  try { defaults = require('./defaults'); }
+  catch (e) { console.warn('defaults.js not found — seeding skipped'); return; }
+  const pairs = [
+    { Model: Categories, name: 'categories', data: defaults.categories },
+    { Model: Products,   name: 'products',   data: defaults.products   },
+    { Model: Services,   name: 'services',   data: defaults.services   }
+  ];
+  for (const { Model, name, data } of pairs) {
+    const existing = await Model.findOne({ key: 'main' });
+    if (!existing || !Array.isArray(existing.data) || existing.data.length === 0) {
+      await Model.findOneAndUpdate(
+        { key: 'main' }, { $set: { data } }, { upsert: true, new: true }
+      );
+      console.log(`🌱 Seeded default ${name} (${data.length} items)`);
+    }
+  }
+  const s = await Settings.findOne({ key: 'main' });
+  if (!s) {
+    await Settings.create({ key: 'main' });
+    console.log('🌱 Seeded default settings');
+  }
+}
 
 const OrderSchema = new mongoose.Schema({
   id:              { type: String, index: true, unique: true },
@@ -199,9 +253,12 @@ function optionalAdmin(req, _res, next) {
    API ROUTES
    ════════════════════════════════════════════ */
 
-/* Health */
-app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
-app.get('/api/healthz', (_req, res) => res.json({ ok: true }));
+/* Health — includes MongoDB status so admin panel/ops-এ সমস্যা সহজে বোঝা যায় */
+app.get('/api/health', (_req, res) => res.json({
+  ok: true, time: new Date().toISOString(),
+  mongo: { ready: dbReady(), state: mongoose.connection.readyState, lastError: mongoLastError }
+}));
+app.get('/api/healthz', (_req, res) => res.json({ ok: dbReady(), mongo: dbReady() }));
 
 /* Admin login */
 app.post('/api/admin/login', (req, res) => {
@@ -237,7 +294,7 @@ app.post('/api/upload', requireAdmin, async (req, res) => {
    পাঠানো হয় — অর্থাৎ অ্যাডমিন প্যানেল থেকে ডিসেবল করলেই তা ফ্রন্টএন্ড থেকে
    সার্ভার লেভেলেই বাদ পড়ে যাবে। */
 function bucketRoutes(path, Model) {
-  app.get(`/api/${path}`, optionalAdmin, async (req, res) => {
+  app.get(`/api/${path}`, optionalAdmin, requireDb, async (req, res) => {
     try {
       // ব্রাউজার/প্রক্সি/CDN কোথাও যেন এই রেসপন্স ক্যাশ না হয় — নাহলে অ্যাডমিন
       // থেকে ডিসেবল করার পরেও ফ্রন্টএন্ডে পুরনো (ক্যাশড) ডেটা দেখাতে পারে।
@@ -254,7 +311,7 @@ function bucketRoutes(path, Model) {
     }
     catch (e) { res.status(500).json({ error: e.message }); }
   });
-  app.put(`/api/${path}`, requireAdmin, async (req, res) => {
+  app.put(`/api/${path}`, requireAdmin, requireDb, async (req, res) => {
     try { const b = await putBucket(Model, req.body); res.json(b.data); }
     catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -263,6 +320,12 @@ bucketRoutes('products',   Products);
 bucketRoutes('categories', Categories);
 bucketRoutes('services',   Services);
 bucketRoutes('settings',   Settings);
+
+/* Admin utility: force re-seed defaults (empty buckets only) */
+app.post('/api/admin/seed-defaults', requireAdmin, requireDb, async (_req, res) => {
+  try { await seedDefaultsIfEmpty(); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 /* Analytics */
 app.post('/api/track/visit', async (req, res) => {
