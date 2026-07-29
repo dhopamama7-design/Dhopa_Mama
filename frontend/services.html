@@ -1206,7 +1206,10 @@ a{color:inherit}
 <nav class="mobile-bottom-nav">
   <div class="nav-items">
     <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
-    <a href="services.html" class="nav-item active"><i class="fas fa-concierge-bell"></i><span>Service</span></a>
+    <a href="services.html" class="nav-item active">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      <span>Service</span>
+    </a>
     <a href="about.html" class="nav-item"><i class="fas fa-info-circle"></i><span>About Us</span></a>
     <a href="cart.html" class="nav-item" onclick="renderCart();openCartPopup();return false;"><i class="fas fa-shopping-cart"></i><span>Cart</span></a>
     <a href="account.html" class="nav-item"><i class="far fa-user"></i><span>Login</span></a>
@@ -1777,11 +1780,11 @@ a{color:inherit}
           </li>
           <li class="footer-contact-item">
             <div class="footer-contact-icon"><i class="far fa-envelope"></i></div>
-            <span>corporate@dhopamama.shop</span>
+            <span>dhopamama7@gmail.com</span>
           </li>
           <li class="footer-contact-item">
             <div class="footer-contact-icon"><i class="fas fa-phone-alt"></i></div>
-            <span>+8809613821489</span>
+            <span>+8801351412414</span>
           </li>
         </ul>
       </div>
@@ -2068,7 +2071,7 @@ let products = window.__pickApi("products", [
 products = products.filter(function(p){ return p.enabled !== false; });
 
 function serviceLabel(key){
-  return key==='normal' ? 'নরমাল ওয়াশ' : key==='dry' ? 'ড্রাই ওয়াশ' : 'আয়রন';
+  return key==='normal' ? 'ওয়াশ' : key==='dry' ? 'ড্রাই ওয়াশ' : '';
 }
 
 var activeCategory = 'all';   // 'all' অথবা men-wear/women-wear/winter-wear/home-linen/suits
@@ -2108,9 +2111,11 @@ function renderProducts(){
 
       <div class="product-info">
         <div class="product-title">${p.t}</div>
-        <div class="product-price">${
-          Object.keys(p.services).filter(k=>p.services[k]!=null)
-            .map(k=>`${serviceLabel(k)} ৳${p.services[k]}`).join(' • ')
+        <div class="product-price" style="font-size:13px;color:var(--muted);font-weight:500">${
+          (()=>{
+            var keys = Object.keys(p.services).filter(k=>k!=='iron' && p.services[k]!=null);
+            return keys.map(k=>serviceLabel(k)).filter(Boolean).join(' • ') || '';
+          })()
         }</div>
         <button class="btn-cart" onclick="openProductModal(${idx})">সার্ভিস বাছাই করুন</button>
       </div>
@@ -2475,10 +2480,10 @@ function buildServiceOptions(services){
   var opts = [];
   if (services.normal != null) {
     var p1 = services.normal + (services.iron != null ? 0 : 0); // আয়রন ফ্রি
-    opts.push({key:'normal+iron', label:'নরমাল ওয়াশ + আয়রন <small style="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.normal});
+    opts.push({key:'normal+iron', label:'ওয়াশ', price: services.normal});
   }
   if (services.dry != null) {
-    opts.push({key:'dry+iron', label:'ড্রাই ওয়াশ + আয়রন <small style="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.dry});
+    opts.push({key:'dry+iron', label:'ড্রাই ওয়াশ', price: services.dry});
   }
   return opts;
 }
@@ -2566,7 +2571,7 @@ function getOptionPrice(services, key){
 }
 
 function serviceOptionLabel(key){
-  return {normal:'নরমাল ওয়াশ + আয়রন (আয়রন ফ্রি)', dry:'ড্রাই ওয়াশ + আয়রন (আয়রন ফ্রি)', iron:'আয়রন (ফ্রি)', 'normal+iron':'নরমাল ওয়াশ + আয়রন (আয়রন ফ্রি)', 'dry+iron':'ড্রাই ওয়াশ + আয়রন (আয়রন ফ্রি)'}[key];
+  return {normal:'ওয়াশ', dry:'ড্রাই ওয়াশ', iron:'', 'normal+iron':'ওয়াশ', 'dry+iron':'ড্রাই ওয়াশ'}[key] || key;
 }
 
 function updateModalTotal(){

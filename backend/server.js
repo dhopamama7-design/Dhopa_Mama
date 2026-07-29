@@ -385,7 +385,18 @@ app.get('/api/my-orders', requireUser, async (req, res) => {
 app.post('/api/orders', optionalUser, async (req, res) => {
   try {
     const body = req.body || {};
-    if (!body.id) body.id = 'ORD' + Date.now();
+    if (!body.id) {
+    // Sequential order ID: ORD001, ORD002...
+    const allOrds = await Order.find({}, { id: 1 }).lean();
+    let maxNum = 0;
+    allOrds.forEach(o => {
+      if (o.id && /^ORD\d+$/i.test(o.id)) {
+        const n = parseInt(o.id.replace(/^ORD/i, ''), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    });
+    body.id = 'ORD' + String(maxNum + 1).padStart(3, '0');
+  }
     if (req.user) {
       body.userId = req.user.id;
       body.userContact = req.user.contact;

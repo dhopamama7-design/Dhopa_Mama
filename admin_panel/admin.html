@@ -887,7 +887,7 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
       </div>
       <div class="card table-wrap">
         <table>
-          <thead><tr><th>প্রোডাক্ট</th><th>ক্যাটাগরি</th><th>নরমাল ওয়াশ</th><th>ড্রাই ওয়াশ</th><th>আয়রন</th><th>স্ট্যাটাস</th><th style="text-align:right">অ্যাকশন</th></tr></thead>
+          <thead><tr><th>প্রোডাক্ট</th><th>ক্যাটাগরি</th><th>ওয়াশ</th><th>ড্রাই ওয়াশ</th><th>স্ট্যাটাস</th><th style="text-align:right">অ্যাকশন</th></tr></thead>
           <tbody id="productsBody"></tbody>
         </table>
       </div>
@@ -1125,7 +1125,7 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
     </div>
     <div class="field">
       <label>প্রোডাক্ট ছবি (ঐচ্ছিক — খালি রাখলে আইকন দেখাবে)</label>
-      <div class="upload-zone" id="prodImgDropzone">
+      <div class="upload-zone" id="prodImgDropzone" onclick="if(!event.target.closest('.upload-remove'))document.getElementById('prodImgFile').click()">
         <div class="upload-preview-wrap" id="prodImgPreviewWrap" style="display:none">
           <img id="prodImgPreview" src="" alt="preview">
           <div class="upload-remove" onclick="event.stopPropagation(); clearImageUpload('prod')">&times;</div>
@@ -1142,10 +1142,13 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
     <div class="field">
       <label>সার্ভিস অনুযায়ী মূল্য (৳) — খালি রাখলে সেই সার্ভিস বন্ধ থাকবে</label>
       <div class="field-row">
-        <input type="number" id="prodPriceNormal" placeholder="নরমাল ওয়াশ">
+        <input type="number" id="prodPriceNormal" placeholder="ওয়াশ">
         <input type="number" id="prodPriceDry" placeholder="ড্রাই ওয়াশ">
-        <input type="number" id="prodPriceIron" placeholder="আয়রন">
       </div>
+    </div>
+    <div class="field">
+      <label>ডিস্কাউন্ট মূল্য (৳) — ঐচ্ছিক, থাকলে প্রোডাক্টে কাটাদাগ দিয়ে দেখাবে</label>
+      <input type="number" id="prodPriceDiscount" placeholder="ডিস্কাউন্ট প্রাইস (খালি রাখলে দেখাবে না)" style="max-width:240px">
     </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeProductModal()">বাতিল</button>
@@ -1527,7 +1530,7 @@ const VIEW_TITLES = {
   dashboard:['সু-প্রভাত, Dhopa Mama 👋','আবার স্বাগতম, আপনার ব্যবসা পরিচালনা করুন সহজেই'],
   products:['প্রোডাক্ট ম্যানেজমেন্ট','সকল কাপড়ের আইটেম যোগ, সম্পাদনা ও মূল্য নির্ধারণ করুন'],
   categories:['ক্যাটাগরি ম্যানেজমেন্ট','প্রোডাক্ট ক্যাটাগরি পরিচালনা করুন'],
-  services:['সার্ভিস প্যাকেজ','ওয়াশ, ড্রাই ক্লিন ও আয়রন সার্ভিসের বিস্তারিত পরিচালনা করুন'],
+  services:['সার্ভিস প্যাকেজ','ওয়াশ, ড্রাই ক্লিন সার্ভিসের বিস্তারিত পরিচালনা করুন'],
   orders:['অর্ডার ম্যানেজমেন্ট','গ্রাহকের অর্ডার দেখুন ও স্ট্যাটাস আপডেট করুন'],
   customers:['গ্রাহক তালিকা','সাইন-আপ করা গ্রাহকদের তথ্য দেখুন'],
   analytics:['অ্যানালিটিক্স','ওয়েবসাইট ভিজিট ও প্রোডাক্ট ক্লিক পরিসংখ্যান (Google Analytics সহ)'],
@@ -1764,7 +1767,6 @@ function renderProductsTable(filter){
       <td>${catLabel(p.cat)}</td>
       <td>${s.normal!=null ? fmt(s.normal) : '<span class="cell-sub">বন্ধ</span>'}</td>
       <td>${s.dry!=null ? fmt(s.dry) : '<span class="cell-sub">বন্ধ</span>'}</td>
-      <td>${s.iron!=null ? fmt(s.iron) : '<span class="cell-sub">বন্ধ</span>'}</td>
       <td>
         <div class="enable-toggle-wrap">
           <label class="enable-toggle">
@@ -1834,7 +1836,7 @@ function uploadToCloudinary(prefix, dataUrl){
   const hidden = document.getElementById(prefix+'Img');
   const wrap   = document.getElementById(prefix+'ImgPreviewWrap');
   const token  = (typeof window.getAdminToken === 'function') ? window.getAdminToken() : '';
-  if (!token){ alert('আপলোডের জন্য অ্যাডমিন লগইন দরকার।'); return; }
+  if (!token){ /* no token — base64 kept as fallback */ return; }
   if (wrap){ wrap.style.opacity = '0.55'; wrap.setAttribute('data-uploading','1'); }
   fetch(window.API_BASE + '/api/upload', {
     method: 'POST',
@@ -1848,11 +1850,10 @@ function uploadToCloudinary(prefix, dataUrl){
       var imgEl = document.getElementById(prefix+'ImgPreview');
       if (imgEl) imgEl.src = res.data.url;
     } else {
-      alert('ছবি আপলোড ব্যর্থ: ' + ((res.data && res.data.error) || res.status));
-      clearImageUpload(prefix);
+      console.warn('Cloudinary upload failed:', (res.data && res.data.error) || res.status);
     }
   })
-  .catch(function(){ alert('ছবি আপলোডে নেটওয়ার্ক সমস্যা — API_BASE ও ইন্টারনেট চেক করুন।'); clearImageUpload(prefix); })
+  .catch(function(){ console.warn('Cloudinary upload failed — base64 preview kept.'); if (wrap){ wrap.style.opacity = '1'; wrap.removeAttribute('data-uploading'); } })
   .finally(function(){ if (wrap){ wrap.style.opacity = '1'; wrap.removeAttribute('data-uploading'); } });
 }
 function setupImageUpload(prefix){
@@ -1887,7 +1888,7 @@ function openProductModal(idx){
     setImagePreview('prod', '');
     document.getElementById('prodPriceNormal').value = '';
     document.getElementById('prodPriceDry').value = '';
-    document.getElementById('prodPriceIron').value = '';
+    document.getElementById('prodPriceDiscount').value = '';
   } else {
     const p = products[idx];
     document.getElementById('productModalTitle').textContent = 'প্রোডাক্ট সম্পাদনা';
@@ -1897,7 +1898,7 @@ function openProductModal(idx){
     setImagePreview('prod', p.img || '');
     document.getElementById('prodPriceNormal').value = (p.services && p.services.normal!=null) ? p.services.normal : '';
     document.getElementById('prodPriceDry').value = (p.services && p.services.dry!=null) ? p.services.dry : '';
-    document.getElementById('prodPriceIron').value = (p.services && p.services.iron!=null) ? p.services.iron : '';
+    document.getElementById('prodPriceDiscount').value = (p.discountPrice!=null) ? p.discountPrice : '';
   }
   document.getElementById('productModalOverlay').classList.add('open');
 }
@@ -1909,16 +1910,16 @@ function saveProduct(){
   if (!title){ alert('প্রোডাক্টের নাম দিন।'); return; }
   const n = document.getElementById('prodPriceNormal').value;
   const d = document.getElementById('prodPriceDry').value;
-  const i = document.getElementById('prodPriceIron').value;
+  const disc = document.getElementById('prodPriceDiscount') ? document.getElementById('prodPriceDiscount').value : '';
   const obj = {
     t: title,
     icon: document.getElementById('prodIcon').value.trim() || 'fa-tshirt',
     cat: document.getElementById('prodCat').value,
     img: document.getElementById('prodImg').value.trim() || null,
+    discountPrice: disc===''? null : Number(disc),
     services: {
       normal: n===''? null : Number(n),
       dry: d===''? null : Number(d),
-      iron: i===''? null : Number(i)
     },
     enabled: (idx>=0 && products[idx]) ? (products[idx].enabled !== false) : true
   };
