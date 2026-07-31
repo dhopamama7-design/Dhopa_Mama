@@ -139,13 +139,9 @@
 </script>
 
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-1PEJ403GT4"></script>
+<!-- দ্বিতীয় GA প্রপার্টি — একই gtag.js লাইব্রেরি আবার লোড না করে বিদ্যমানটিতেই config যোগ করা হচ্ছে
+     (আগে gtag/js দুইবার আলাদাভাবে fetch হত, যা পেজ লোডে বাড়তি একটি নেটওয়ার্ক রিকোয়েস্ট যোগ করত) -->
 <script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
   gtag('config', 'G-1PEJ403GT4');
 </script>
 
@@ -1005,26 +1001,29 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
   window.__API_DATA = window.__API_DATA || {};
   function cacheBust(){ return '?t=' + Date.now(); }
 
-  // ---- sync preload (page render হবার আগেই const cats / const products পাবে) ----
-  // cache-busting query param যোগ করা হয়েছে যাতে ব্রাউজার/CDN পুরনো (stale) রেসপন্স
-  // ক্যাশ থেকে না দেয় — অ্যাডমিন প্যানেল থেকে enable/disable করলে সাথে সাথেই প্রতিফলিত হয়
-  Object.keys(EP).forEach(function(k){
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', window.API_BASE + '/api/' + EP[k] + cacheBust(), false);
-      xhr.send();
-      if (xhr.status === 200 && xhr.responseText && xhr.responseText !== 'null'){
-        try { window.__API_DATA[k] = JSON.parse(xhr.responseText); } catch(e){}
-      }
-    } catch(e){}
-  });
-
   // helper — যদি API থেকে valid array/object আসে সেটা ব্যবহার করো, নাহলে default
   window.__pickApi = function(key, fallback){
     var v = window.__API_DATA[key];
     if (Array.isArray(fallback)) return (Array.isArray(v) && v.length) ? v : fallback;
     return (v && typeof v === 'object') ? v : fallback;
   };
+
+  // ---- আগে এখানে blocking synchronous XHR ছিল (৪টা রিকোয়েস্ট একে একে, main thread
+  // ব্লক করে) — Render ব্যাকএন্ড ঘুমিয়ে থাকলে (cold start) পুরো পেজ ৩০-৬০ সেকেন্ড
+  // পর্যন্ত সাদা/ফাঁকা হয়ে থাকত, কারণ ব্রাউজার HTML পার্স করাই শুরু করতে পারত না।
+  // এখন non-blocking async fetch (৪টাই একসাথে, parallel) ব্যবহার হচ্ছে — পেজ সাথে
+  // সাথেই নিচের হার্ডকোড করা ডিফল্ট ডেটা দিয়ে রেন্ডার হয়ে যায়, আসল ডেটা এলে
+  // ব্যাকগ্রাউন্ডে (__rerenderFromApi এর মাধ্যমে) আপডেট হয়। ----
+  Promise.all(Object.keys(EP).map(function(k){
+    return fetch(window.API_BASE + '/api/' + EP[k] + cacheBust(), { cache:'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){ if (data !== null && data !== undefined) window.__API_DATA[k] = data; })
+      .catch(function(){});
+  })).then(function(){
+    if (typeof window.__rerenderFromApi === 'function'){
+      try { window.__rerenderFromApi(); } catch(e){}
+    }
+  });
 
   // ---- Async refresh প্রতি 10 সেকেন্ডে (admin থেকে নতুন পরিবর্তন live দেখতে) ----
   setInterval(function(){
