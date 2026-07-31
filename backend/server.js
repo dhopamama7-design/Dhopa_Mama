@@ -386,7 +386,7 @@ app.post('/api/orders', optionalUser, async (req, res) => {
   try {
     const body = req.body || {};
     if (!body.id) {
-    // Sequential order ID: ORD001, ORD002...
+    // Sequential order ID: ORD0001, ORD0002...
     const allOrds = await Order.find({}, { id: 1 }).lean();
     let maxNum = 0;
     allOrds.forEach(o => {
@@ -395,7 +395,7 @@ app.post('/api/orders', optionalUser, async (req, res) => {
         if (!isNaN(n) && n > maxNum) maxNum = n;
       }
     });
-    body.id = 'ORD' + String(maxNum + 1).padStart(3, '0');
+    body.id = 'ORD' + String(maxNum + 1).padStart(4, '0');
   }
     if (req.user) {
       body.userId = req.user.id;
@@ -428,6 +428,11 @@ app.patch('/api/orders/:id', requireAdmin, async (req, res) => {
 });
 app.delete('/api/orders/:id', requireAdmin, async (req, res) => {
   try { await Order.deleteOne({ id: req.params.id }); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+/* সব অর্ডার একসাথে ডিলেট — এরপর নতুন অর্ডার আবার ORD0001 থেকে কাউন্ট শুরু হবে */
+app.delete('/api/orders', requireAdmin, async (_req, res) => {
+  try { const r = await Order.deleteMany({}); res.json({ ok: true, deleted: r.deletedCount || 0 }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 

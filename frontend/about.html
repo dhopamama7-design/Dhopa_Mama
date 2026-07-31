@@ -1086,7 +1086,6 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
     try {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', window.API_BASE + '/api/' + EP[k], false);
-      xhr.timeout = 6000;
       xhr.send();
       if (xhr.status === 200 && xhr.responseText && xhr.responseText !== 'null'){
         try { window.__API_DATA[k] = JSON.parse(xhr.responseText); } catch(e){}

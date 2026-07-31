@@ -989,7 +989,6 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
     try {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', window.API_BASE + '/api/' + EP[k], false);
-      xhr.timeout = 6000;
       xhr.send();
       if (xhr.status === 200 && xhr.responseText && xhr.responseText !== 'null'){
         try { window.__API_DATA[k] = JSON.parse(xhr.responseText); } catch(e){}
@@ -2420,11 +2419,11 @@ var currentModalProduct = null; // {idx, optionKeys:[], qty} — optionKeys এ�
 var orders = []; // ডেমো — সেশনে সংরক্ষিত, ব্রাউজার রিফ্রেশে মুছে যাবে
 
 function buildServiceOptions(services){
-  // শুধু দুটি অপশন থাকবে: ওয়াশরন (ফ্রি), ড্রাই ওয়াশ + আয়রন (ফ্রি)
+  // শুধু দুটি অপশন থাকবে: ওয়াশ + আয়রন (ফ্রি), ড্রাই ওয়াশ + আয়রন (ফ্রি)
   var opts = [];
   if (services.normal != null) {
     var p1 = services.normal + (services.iron != null ? 0 : 0); // আয়রন ফ্রি
-    opts.push({key:'normal+iron', label:'ওয়াশyle="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.normal});
+    opts.push({key:'normal+iron', label:'ওয়াশ + আয়রন <small style="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.normal});
   }
   if (services.dry != null) {
     opts.push({key:'dry+iron', label:'ড্রাই ওয়াশ + আয়রন <small style="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.dry});

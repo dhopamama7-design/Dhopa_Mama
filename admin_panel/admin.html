@@ -926,6 +926,7 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
           <option value="Delivered">Delivered</option>
           <option value="Cancelled">Cancelled</option>
         </select>
+        <button class="btn btn-danger-ghost" style="margin-left:10px" onclick="deleteAllOrders()"><i class="fas fa-trash"></i> সব অর্ডার ডিলেট করুন</button>
       </div>
       <div class="card table-wrap">
         <table>
@@ -1125,7 +1126,7 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
     </div>
     <div class="field">
       <label>প্রোডাক্ট ছবি (ঐচ্ছিক — খালি রাখলে আইকন দেখাবে)</label>
-      <div class="upload-zone" id="prodImgDropzone" onclick="if(!event.target.closest('.upload-remove'))document.getElementById('prodImgFile').click()">
+      <div class="upload-zone" id="prodImgDropzone">
         <div class="upload-preview-wrap" id="prodImgPreviewWrap" style="display:none">
           <img id="prodImgPreview" src="" alt="preview">
           <div class="upload-remove" onclick="event.stopPropagation(); clearImageUpload('prod')">&times;</div>
@@ -2152,9 +2153,36 @@ function updateOrderStatus(idx, status){
 }
 function deleteOrder(idx){
   if (!confirm('এই অর্ডারটি মুছে ফেলতে চান?')) return;
+  const ord = orders[idx];
   orders.splice(idx,1);
   saveData(LS.orders, orders);
   renderAll();
+  if (ord && ord.id){
+    const token = (typeof window.getAdminToken === 'function') ? window.getAdminToken() : '';
+    fetch(window.API_BASE + '/api/orders/' + ord.id, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+    }).catch(function(){});
+  }
+}
+function deleteAllOrders(){
+  if (!orders.length){ alert('মুছে ফেলার মতো কোনো অর্ডার নেই।'); return; }
+  if (!confirm('আপনি কি নিশ্চিত সব (' + orders.length + 'টি) অর্ডার স্থায়ীভাবে ডিলেট করতে চান? এই কাজটি ফিরিয়ে নেওয়া যাবে না।')) return;
+  const token = (typeof window.getAdminToken === 'function') ? window.getAdminToken() : '';
+  fetch(window.API_BASE + '/api/orders', {
+    method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+  })
+  .then(function(r){ return r.json().then(function(d){ return { status:r.status, data:d }; }); })
+  .then(function(res){
+    if (res.status === 200){
+      orders.length = 0;
+      saveData(LS.orders, orders);
+      renderAll();
+      alert('সব অর্ডার সফলভাবে ডিলেট করা হয়েছে। এখন থেকে নতুন অর্ডার আবার ORD0001 থেকে গণনা শুরু হবে।');
+    } else {
+      alert('অর্ডার ডিলেট ব্যর্থ হয়েছে: ' + ((res.data && res.data.error) || res.status));
+    }
+  })
+  .catch(function(){ alert('অর্ডার ডিলেট ব্যর্থ — নেটওয়ার্ক/সার্ভার সমস্যা।'); });
 }
 function viewOrder(idx){
   const o = orders[idx];

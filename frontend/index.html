@@ -1012,7 +1012,6 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
     try {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', window.API_BASE + '/api/' + EP[k] + cacheBust(), false);
-      xhr.timeout = 6000;
       xhr.send();
       if (xhr.status === 200 && xhr.responseText && xhr.responseText !== 'null'){
         try { window.__API_DATA[k] = JSON.parse(xhr.responseText); } catch(e){}
@@ -1144,17 +1143,7 @@ a{color:inherit}
 .svc-thumb { width: 72px !important; height: 72px !important; }
 .svc-thumb img { object-fit: contain !important; padding: 4px !important; background: #fafafa; }
 
-/* service-option disabled (Coming Soon) */
-.service-option { pointer-events: none !important; cursor: not-allowed !important; position: relative !important; }
-
-/* Coming Soon badge */
-.svc-coming-soon {
-  display: inline-block;
-  font-size: 10px; font-weight: 700;
-  color: #fff; background: #997D36;
-  border-radius: 4px; padding: 2px 7px;
-  margin-top: 3px; letter-spacing: .3px;
-}
+.service-option { position: relative !important; }
 
 /* Hero slider — all screen sizes */
 @media(min-width:721px){
@@ -2594,11 +2583,11 @@ var currentModalProduct = null; // {idx, optionKeys:[], qty} — optionKeys এ�
 var orders = []; // ডেমো — সেশনে সংরক্ষিত, ব্রাউজার রিফ্রেশে মুছে যাবে
 
 function buildServiceOptions(services){
-  // শুধু দুটি অপশন থাকবে: ওয়াশরন (ফ্রি), ড্রাই ওয়াশ + আয়রন (ফ্রি)
+  // শুধু দুটি অপশন থাকবে: ওয়াশ + আয়রন (ফ্রি), ড্রাই ওয়াশ + আয়রন (ফ্রি)
   var opts = [];
   if (services.normal != null) {
     var p1 = services.normal + (services.iron != null ? 0 : 0); // আয়রন ফ্রি
-    opts.push({key:'normal+iron', label:'ওয়াশরন <small style="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.normal});
+    opts.push({key:'normal+iron', label:'ওয়াশ + আয়রন <small style="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.normal});
   }
   if (services.dry != null) {
     opts.push({key:'dry+iron', label:'ড্রাই ওয়াশ + আয়রন <small style="color:#CA9100;font-weight:700">(আয়রন ফ্রি)</small>', price: services.dry});
@@ -2639,7 +2628,7 @@ function renderModalOptions(opts){
       + 'onclick="selectModalOption(\''+o.key+'\', this)" '
       + 'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectModalOption(\''+o.key+'\', this);}">'
       + '<div class="svc-thumb">'+(img ? '<img loading="lazy" decoding="async" src="'+img+'" alt="'+o.label+'">' : '<i class="fas fa-tshirt"></i>')+'</div>'
-      + '<div class="svc-info"><span class="svc-name">'+o.label+'</span><span class="svc-price">৳'+o.price+'</span><span class="svc-coming-soon">Coming Soon</span></div>'
+      + '<div class="svc-info"><span class="svc-name">'+o.label+'</span><span class="svc-price">৳'+o.price+'</span></div>'
       + '<div class="svc-check"><i class="fas fa-check"></i></div>'
       + '</div>';
   }).join('');
