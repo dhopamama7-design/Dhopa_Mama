@@ -3263,22 +3263,29 @@ function renderServiceGallery() {
     return '<div class="svc-gallery-card svcc-' + cc + '" onclick="openServiceDetailModal(' + i + ')">'
       + '<div class="svc-step-top">'
         + '<div class="svc-step-num">' + num + '</div>'
-        + '<div class="svc-step-bar"><div class="svc-step-bar-icon"><i class="fas ' + s.icon + '"></i></div></div>'
+        + '<div class="svc-step-bar">'
+          + '<div class="svc-step-bar-icon">'
+            + '<i class="fas ' + s.icon + '"></i>'
+          + '</div>'
+        + '</div>'
       + '</div>'
+
       + '<div class="svc-gallery-body">'
         + (s.popular ? '<div class="svc-badge-popular">জনপ্রিয়</div>' : '')
         + '<h3>' + s.title + '</h3>'
-        + '<p>' + s.short + '</p>'
+
         + '<div class="svc-gallery-foot">'
-          + '<div class="svc-gallery-more">বিস্তারিত <i class="fas fa-arrow-right"></i></div>'
+          + '<div class="svc-gallery-more">'
+            + 'বিস্তারিত <i class="fas fa-arrow-right"></i>'
+          + '</div>'
         + '</div>'
       + '</div>'
+
     + '</div>';
   }).join('');
 
   grid.dataset.rendered = '1';
 }
-
 
 function openServiceDetailModal(i){
   var s = SERVICES_LIST[i];
