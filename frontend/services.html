@@ -3252,30 +3252,7 @@ var SERVICES_LIST = window.__pickApi("services", [
 /* অ্যাডমিন থেকে বন্ধ (disabled) করা সার্ভিস ওয়েবসাইটে দেখানো হবে না */
 SERVICES_LIST = SERVICES_LIST.filter(function(s){ return s.enabled !== false; });
 
-function renderServiceGallery(){
-  var grid = document.getElementById('svcGalleryGrid');
-  if(!grid) return;
-  grid.innerHTML = SERVICES_LIST.map(function(s, i){
-    var cc = i % 3;
-    var num = i + 1;
-    return '<div class="svc-gallery-card svcc-'+cc+'" onclick="openServiceDetailModal('+i+')">'
-      + '<div class="svc-step-top">'
-        + '<div class="svc-step-num">'+num+'</div>'
-        + '<div class="svc-step-bar"><div class="svc-step-bar-icon"><i class="fas '+s.icon+'"></i></div></div>'
-      + '</div>'
-      + '<div class="svc-gallery-body">'
-        + (s.popular ? '<div class="svc-badge-popular">জনপ্রিয়</div>' : '')
-        + '<h3>'+s.title+'</h3>'
-        + '<p>'+s.short+'</p>'
-        + '<div class="svc-gallery-foot">'
-          + '<div class="svc-gallery-price">'+s.price+' <small>'+s.unit+'</small></div>'
-          + '<div class="svc-gallery-more">বিস্তারিত <i class="fas fa-arrow-right"></i></div>'
-        + '</div>'
-      + '</div>'
-    + '</div>';
-  }).join('');
-  grid.dataset.rendered = '1';
-}
+
 function openServiceDetailModal(i){
   var s = SERVICES_LIST[i];
   if(!s) return;
