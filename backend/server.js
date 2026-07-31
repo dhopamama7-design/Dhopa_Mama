@@ -7,6 +7,7 @@
 
 try { require('dotenv').config(); } catch (e) { /* dotenv optional in prod hosts like Render */ }
 const express = require('express');
+const compression = require('compression');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -16,6 +17,10 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
+
+/* ── Gzip compression — API JSON (base64 ছবিসহ) ও static ফাইল অনেক ছোট হয়ে
+   পাঠানো হবে, ফলে ফ্রন্টএন্ড অনেক দ্রুত লোড হবে ── */
+app.use(compression());
 
 /* ── Body parsing ── */
 app.use(express.json({ limit: '25mb' }));
@@ -430,10 +435,14 @@ app.delete('/api/orders/:id', requireAdmin, async (req, res) => {
   try { await Order.deleteOne({ id: req.params.id }); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
-/* সব অর্ডার একসাথে ডিলেট — এরপর নতুন অর্ডার আবার ORD0001 থেকে কাউন্ট শুরু হবে */
+/* সব অর্ডার একসাথে মুছে ফেলা (admin only) — এরপর নতুন প্রথম অর্ডারটি
+   আবার ORD0001 থেকে শুরু হবে, কারণ ID জেনারেট হয় বিদ্যমান অর্ডারের সর্বোচ্চ
+   নম্বরের ভিত্তিতে (উপরে দেখুন) এবং কোনো অর্ডার না থাকলে সেই সংখ্যা ০। */
 app.delete('/api/orders', requireAdmin, async (_req, res) => {
-  try { const r = await Order.deleteMany({}); res.json({ ok: true, deleted: r.deletedCount || 0 }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const result = await Order.deleteMany({});
+    res.json({ ok: true, deletedCount: result.deletedCount });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 /* Users */
@@ -580,7 +589,17 @@ app.get('/api/top-friend/status', requireUser, async (req, res) => {
    Must come AFTER all /api routes
    ════════════════════════════════════════════ */
 if (fs.existsSync(FRONTEND_DIR)) {
-  app.use(express.static(FRONTEND_DIR));
+  app.use(express.static(FRONTEND_DIR, {
+    setHeaders: (res, filePath) => {
+      // HTML সবসময় ফ্রেশ থাকবে (নতুন ডিপ্লয়ে যেন পুরনো ভার্সন আটকে না থাকে),
+      // কিন্তু ছবি/CSS/JS/ফন্ট ব্রাউজারে ক্যাশ হয়ে থাকবে — পরের ভিজিটে দ্রুত লোড হবে।
+      if (/\.html?$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'no-cache');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+      }
+    }
+  }));
   // SPA fallback: serve index.html for any unmatched route (excluding /api and /admin)
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/admin/')) return res.status(404).json({ error: 'Not found' });
