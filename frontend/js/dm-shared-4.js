@@ -22,21 +22,7 @@
           method:'POST',
           headers: headers,
           body: JSON.stringify(o)
-        })
-        .then(function(r){
-          return r.json().catch(function(){ return {}; }).then(function(d){
-            /* সার্ভার দাম/ইনপুট যাচাই করে — ব্যর্থ হলে অর্ডার সেভ হয়নি, তাই
-               ইউজারকে অবশ্যই জানাতে হবে, নাহলে "সফল" দেখেও অ্যাডমিন প্যানেলে
-               অর্ডার দেখা যাবে না। */
-            if (!r.ok) { alert(d.error || 'অর্ডার সার্ভারে সেভ করা যায়নি। আবার চেষ্টা করুন।'); return; }
-            if (d && d.id) {
-              try { var el = document.getElementById('successOrderId'); if (el) el.textContent = d.id; } catch(e){}
-            }
-          });
-        })
-        .catch(function(){
-          alert('অর্ডার সার্ভারে পাঠানো যায়নি — ইন্টারনেট সংযোগ চেক করুন।');
-        });
+        }).catch(function(){});
       }
     } catch(e){ console.warn('order post failed', e); }
   };

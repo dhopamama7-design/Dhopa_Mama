@@ -640,10 +640,18 @@ tr.row-new td{background:var(--brand-light)!important;}
         .then(function(txt){
           if (!txt || txt === 'null') return;
           if (MEM[lsKey] === txt) return;
+          // নতুন অর্ডার এলে টোস্ট নোটিফিকেশন দেখানোর জন্য — MEM/orders আপডেট
+          // করার আগেই তুলনা করতে হবে, নাহলে পুরোনো vs নতুন তুলনা করা যাবে না।
+          if (lsKey === 'falaqOrders' && typeof window.detectNewOrders === 'function'){
+            try {
+              var parsed = JSON.parse(txt);
+              if (Array.isArray(parsed)) window.detectNewOrders(parsed);
+            } catch(e){}
+          }
           MEM[lsKey] = txt;
           try { _rawSetInit(CACHE_PREFIX + lsKey, txt); } catch(e){}
           if (typeof window.reloadAllFromStorage === 'function'){
-            try { window.reloadAllFromStorage(); } catch(e){}
+            try { window.reloadAllFromStorage(); window.renderAll && window.renderAll(); } catch(e){}
           } else if (typeof window.renderAll === 'function'){
             try { window.renderAll(); } catch(e){}
           }
@@ -2334,6 +2342,7 @@ function detectNewOrders(freshOrders){
   });
   return incoming.length > 0;
 }
+window.detectNewOrders = detectNewOrders;
 
 /* ================= রিফ্রেশ সব ================= */
 function reloadAllFromStorage(){
@@ -2418,27 +2427,18 @@ function renderAll(){
   });
 }
 
-/* একই ব্রাউজারে index.html থেকে অর্ডার/গ্রাহক যোগ হলে (অন্য ট্যাবে) লাইভ আপডেট */
-window.addEventListener('storage', function(e){
-  if (e.key === LS.orders){
-    const freshOrders = loadData(LS.orders, []);
-    detectNewOrders(freshOrders);
-  }
-  if ([LS.orders, LS.users, LS.products, LS.categories, LS.services].includes(e.key)){
-    reloadAllFromStorage();
-    renderAll();
-  }
-});
-/* একই ট্যাব খোলা থাকলে প্রতি ৮ সেকেন্ডে অর্ডার/গ্রাহক ডেটা রিফ্রেশ চেক */
-setInterval(function(){
-  const freshOrders = loadData(LS.orders, []);
-  const freshUsers = loadData(LS.users, []);
-  if (freshOrders.length !== orders.length || freshUsers.length !== users.length){
-    detectNewOrders(freshOrders);
-    orders = freshOrders; users = freshUsers;
-    renderAll();
-  }
-}, 8000);
+/* নোট: আগে এখানে একটি localStorage 'storage' ইভেন্ট লিসেনার এবং প্রতি ৮
+   সেকেন্ডে একটি setInterval ছিল যা localStorage থেকে সরাসরি অর্ডার/গ্রাহক
+   ডেটা তুলনা করে "orders"/"users" ভ্যারিয়েবল রিসেট করত। এখন সব ডেটা
+   MongoDB API থেকে আসে (localStorage override শুধু in-memory cache), তাই
+   ওই পুরনো লজিকটি ছিল একটি বাগের কারণ: সার্ভার থেকে ফ্রেশ ডেটা এখনো লোড
+   না হওয়া পর্যন্ত loadData() খালি অ্যারে ফলব্যাক রিটার্ন করত, আর
+   তুলনাটি শুধু length ভিত্তিক হওয়ায় "orders" ভ্যারিয়েবল ভুলবশত খালি হয়ে
+   যেত — ফলে "অর্ডার ম্যানেজমেন্ট" এ অর্ডার একটু দেখা গিয়ে পরক্ষণেই
+   অদৃশ্য হয়ে যেত। এখন উপরের API bridge (প্রতি ১০ সেকেন্ডে) নিরাপদে
+   MongoDB থেকে ডেটা সিঙ্ক করে এবং টেক্সট আসলেই বদলেছে কিনা যাচাই করেই
+   renderAll()/detectNewOrders() কল করে, তাই এই পুরনো, অনিরাপদ লজিকটি
+   বাদ দেওয়া হলো। */
 
 renderAll();
 
