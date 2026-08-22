@@ -1,22 +1,13 @@
 /* ==========================================================================
-   Dhopa Mama — শেয়ার্ড API ব্রিজ (ফ্রন্টএন্ড)
+   Dhopa Mama — শেয়ার্ড API ব্রিজ (ফ্রন্টএন্ড) - FIXED VERSION
    --------------------------------------------------------------------------
    সব পাবলিক পেজ (index / services / about / contact / cart / account /
    orders) এই একটি ফাইল ব্যবহার করে। products / categories / services /
    settings — সবকিছুই সরাসরি MongoDB (ব্যাকএন্ড API) থেকে আসে।
 
-   ⚠️  পুরনো ভার্সনের যেসব বাগ এখানে ঠিক করা হয়েছে:
-   1. আগে একটি *synchronous* XMLHttpRequest এ `xhr.timeout` সেট করা হত।
-      ব্রাউজার স্পেক অনুযায়ী synchronous XHR এ timeout সেট করলে
-      `InvalidAccessError` throw হয় — ফলে `xhr.send()` কখনোই চলত না এবং
-      `window.__API_DATA` সর্বদা খালি থাকত। তাই `__pickApi()` প্রতিবার
-      HTML এ হার্ডকোড করা ডিফল্ট ডেটা ফেরত দিত এবং অ্যাডমিন প্যানেলে দাম
-      বদলালে/নতুন পণ্য যোগ করলে ওয়েবসাইটে কিছুই বদলাত না।
-      → এখন সম্পূর্ণ async fetch ব্যবহার হচ্ছে (পেজ আর ব্লক হয় না)।
-   2. আগে `__pickApi` এ `v.length` চেক ছিল, তাই অ্যাডমিন সব পণ্য মুছে দিলে
-      আবার ডিফল্ট ডেটা ফিরে আসত। → এখন খালি array-ও বৈধ উত্তর।
-   3. cart / account / orders পেজে `API_BASE` ফাঁকা ছিল, তাই অর্ডার ও লগইন
-      সার্ভারে পৌঁছাত না। → এখন সব পেজ এই একটি ফাইল থেকেই API_BASE পায়।
+   🔧 নতুন ফিচার:
+   - window.__dmReady বা window.__dmOnReady() দিয়ে বুঝতে পারবেন কখন প্রথম
+     ডেটা লোড হয়েছে এবং রেন্ড করতে প্রস্তুত
    ========================================================================== */
 (function () {
   'use strict';
@@ -38,6 +29,22 @@
   var POLL_MS = 10000;    
 
   window.__API_DATA = window.__API_DATA || {};
+
+  /* 🆕 প্রথম ডেটা লোড সম্পন্ন হয়েছে কিনা */
+  window.__dmReady = false;
+  var readyHooks = [];
+  
+  window.__dmOnReady = function (fn) {
+    if (typeof fn === 'function') {
+      if (window.__dmReady) {
+        /* ইতিমধ্যে প্রস্তুত হয়ে গেছে, তো সাথে সাথে কল করো */
+        fn(window.__API_DATA);
+      } else {
+        /* এখনও প্রস্তুত হয়নি, তো queue করো */
+        readyHooks.push(fn);
+      }
+    }
+  };
 
   /* রেন্ডার হুক — পেজ চাইলে window.__dmOnData(fn) দিয়ে নিজের রেন্ডার
      ফাংশন রেজিস্টার করতে পারে। পুরনো `window.__rerenderFromApi` ও সাপোর্টেড। */
@@ -76,7 +83,7 @@
   };
 
   /* ------------------------------------------------------------------
-     ৩) সার্ভার থেকে ডেটা আনা
+     ३) সার্ভার থেকে ডেটা আনা
      ------------------------------------------------------------------ */
   function fetchKey(k) {
     return fetch(API_BASE + '/api/' + k + '?t=' + Date.now(), {
@@ -127,9 +134,23 @@
   }
   window.__dmRefresh = refreshAll;
 
+  /* 🆕 প্রথম ফেচ শেষ হলে ready hooks কল করা */
+  function notifyReady() {
+    if (window.__dmReady) return; /* দুইবার কল হবে না */
+    window.__dmReady = true;
+    var toCall = readyHooks.slice();
+    readyHooks = [];
+    toCall.forEach(function (fn) {
+      try { fn(window.__API_DATA); }
+      catch (e) { console.warn('[dm-api] ready hook ব্যর্থ:', e); }
+    });
+  }
+
   /* প্রথম ফেচ এখনই শুরু হয় — DOM তৈরি হওয়ার প্রায় সাথে সাথেই আসল
      দাম/পণ্য বসে যায়। */
-  refreshAll();
+  refreshAll().then(function () {
+    notifyReady();
+  });
 
   /* অ্যাডমিন প্যানেলে পরিবর্তন করলে খোলা থাকা ট্যাবেও লাইভ দেখানোর জন্য */
   setInterval(refreshAll, POLL_MS);
@@ -140,7 +161,7 @@
   });
 
   /* ------------------------------------------------------------------
-     ৪) শেয়ার্ড হেল্পার — সব পেজ একইভাবে ইউজার টোকেন পড়তে পারে
+     ४) শেয়ার্ড হেল্পার — সব পেজ একইভাবে ইউজার টোকেন পড়তে পারে
      ------------------------------------------------------------------ */
   window.dmAuthToken = function () {
     try {
