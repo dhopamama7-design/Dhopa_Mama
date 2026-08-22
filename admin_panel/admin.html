@@ -522,7 +522,7 @@ tr.row-new td{background:var(--brand-light)!important;}
   ব্যবহৃত হয় যাতে admin panel এর বাকি কোড অপরিবর্তিত থাকতে পারে।
   শুধু admin login token টি sessionStorage এ রাখা হয় (session ভিত্তিক)।
 */
-/* API_BASE এখন dm-config.js থেকে আসে — এখানে আর হার্ডকোড নেই */
+window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // ← Render URL এখানে বসান
 
 (function(){
   var LS_MAP = {
@@ -546,13 +546,20 @@ tr.row-new td{background:var(--brand-light)!important;}
 
   function cb(){ return '?t=' + Date.now(); }
 
-  // ---- 1) ব্যাকগ্রাউন্ডে async fetch, তারপর re-render ----
-  // নোট: এখানে ইচ্ছাকৃতভাবে ব্রাউজারের real localStorage-এ কোনো cache রাখা
-  // হয় না — সব ডেটা (products/categories/services/orders/users/settings)
-  // সবসময় সরাসরি MongoDB API থেকে আসে। পেজ লোড/রিফ্রেশ করলে প্রথমে "লোড
-  // হচ্ছে..." দেখাবে, তারপর MongoDB থেকে আসল ডেটা এলে রেন্ডার হবে — কোনো
-  // পুরনো/stale ডেটা সংক্ষিপ্ত সময়ের জন্য দেখিয়ে পরে "নাই হয়ে যাওয়ার"
-  // সুযোগ নেই।
+  // ---- 1) Instant load: আগের cache থেকে সাথে সাথে ডেটা দেখাও, ব্যাকগ্রাউন্ডে refresh ----
+  var CACHE_PREFIX = '__dm_cache_';
+  var _rawGetInit = localStorage.getItem.bind(localStorage);
+  var _rawSetInit = localStorage.setItem.bind(localStorage);
+
+  // ধাপ ১: cache থেকে সঙ্গে সঙ্গে load — কোনো delay নেই
+  Object.keys(LS_MAP).forEach(function(lsKey){
+    try {
+      var cached = _rawGetInit(CACHE_PREFIX + lsKey);
+      if (cached && cached !== 'null') MEM[lsKey] = cached;
+    } catch(e){}
+  });
+
+  // ধাপ ২: ব্যাকগ্রাউন্ডে async fetch, তারপর re-render
   // Authorization header যোগ করা হয় যাতে সার্ভার admin হিসেবে চিনে disabled আইটেমসহ সব ডেটা পাঠায়
   function authHeaders(){
     var h = {};
@@ -560,16 +567,15 @@ tr.row-new td{background:var(--brand-light)!important;}
     if (token) h['Authorization'] = 'Bearer ' + token;
     return h;
   }
-  window.__loadedKeys = window.__loadedKeys || {};
   function preloadAll(){
     Object.keys(LS_MAP).forEach(function(lsKey){
       fetch(window.API_BASE + '/api/' + LS_MAP[lsKey] + cb(), { cache:'no-store', headers: authHeaders() })
         .then(function(r){ return r.ok ? r.text() : null; })
         .then(function(txt){
           if (!txt || txt === 'null') return;
-          window.__loadedKeys[lsKey] = true;
           if (MEM[lsKey] === txt) return;
           MEM[lsKey] = txt;
+          try { _rawSetInit(CACHE_PREFIX + lsKey, txt); } catch(e){}
           if (typeof window.reloadAllFromStorage === 'function'){
             try { window.reloadAllFromStorage(); window.renderAll && window.renderAll(); } catch(e){}
           }
@@ -589,9 +595,9 @@ tr.row-new td{background:var(--brand-light)!important;}
   };
   localStorage.setItem = function(k, v){
     if (!LS_MAP[k]) return _rawSet(k, v);
-    // ডেটা কী → শুধু মেমরিতে রাখো (এই ট্যাব চলাকালীন) এবং MongoDB তে PUT করো —
-    // real localStorage-এ কিছুই লেখা হয় না।
+    // ডেটা কী → শুধু মেমরিতে রাখো এবং MongoDB তে PUT করো
     MEM[k] = v;
+    try { _rawSetInit(CACHE_PREFIX + k, v); } catch(e){}
     try {
       var headers = {'Content-Type':'application/json'};
       var token = getToken();
@@ -634,18 +640,10 @@ tr.row-new td{background:var(--brand-light)!important;}
         .then(function(txt){
           if (!txt || txt === 'null') return;
           if (MEM[lsKey] === txt) return;
-          // নতুন অর্ডার এলে টোস্ট নোটিফিকেশন দেখানোর জন্য — MEM/orders আপডেট
-          // করার আগেই তুলনা করতে হবে, নাহলে পুরোনো vs নতুন তুলনা করা যাবে না।
-          if (lsKey === 'falaqOrders' && typeof window.detectNewOrders === 'function'){
-            try {
-              var parsed = JSON.parse(txt);
-              if (Array.isArray(parsed)) window.detectNewOrders(parsed);
-            } catch(e){}
-          }
           MEM[lsKey] = txt;
-          window.__loadedKeys[lsKey] = true;
+          try { _rawSetInit(CACHE_PREFIX + lsKey, txt); } catch(e){}
           if (typeof window.reloadAllFromStorage === 'function'){
-            try { window.reloadAllFromStorage(); window.renderAll && window.renderAll(); } catch(e){}
+            try { window.reloadAllFromStorage(); } catch(e){}
           } else if (typeof window.renderAll === 'function'){
             try { window.renderAll(); } catch(e){}
           }
@@ -673,14 +671,8 @@ tr.row-new td{background:var(--brand-light)!important;}
   }
   window.showLoginScreen = showLoginScreen;
   window.adminLogout = function(){
-    // সার্ভারেও টোকেন বাতিল করা হয় (revocation), তারপর লোকাল টোকেন মুছে ফেলা হয়
-    var t = getToken();
-    var done = function(){ clearToken(); showLoginScreen(); };
-    if (!t) return done();
-    fetch(window.API_BASE + '/api/admin/logout', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + t }
-    }).then(done).catch(done);
+    clearToken();
+    showLoginScreen();
   };
 
   document.addEventListener('DOMContentLoaded', function(){
@@ -2116,17 +2108,8 @@ function renderOrders(){
   let list = orders.slice();
   if (filterVal !== 'all') list = list.filter(o=>(o.status||'Pending')===filterVal);
   document.getElementById('orderCount').textContent = orders.length;
-  // MongoDB থেকে অর্ডার এখনো প্রথমবার লোড না হওয়া পর্যন্ত "কোনো অর্ডার নেই"
-  // না দেখিয়ে "লোড হচ্ছে..." দেখানো হয় — এতে খালি-স্টেট আর আসল-খালি
-  // অবস্থার মধ্যে গুলিয়ে যাওয়ার (এবং সংক্ষিপ্ত সময়ের জন্য "নাই হয়ে যাওয়ার"
-  // মতো দেখানোর) সুযোগ থাকে না।
-  const ordersLoaded = !!(window.__loadedKeys && window.__loadedKeys.falaqOrders);
   if (!list.length){
-    if (!ordersLoaded){
-      body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i>MongoDB থেকে অর্ডার লোড হচ্ছে...</div></td></tr>';
-    } else {
-      body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-receipt"></i>এখনো কোনো অর্ডার আসেনি। ওয়েবসাইট থেকে অর্ডার করা হলে এখানে দেখা যাবে।</div></td></tr>';
-    }
+    body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-receipt"></i>এখনো কোনো অর্ডার আসেনি। ওয়েবসাইট থেকে অর্ডার করা হলে এখানে দেখা যাবে।</div></td></tr>';
     return;
   }
   body.innerHTML = list.map((o)=>{
@@ -2345,7 +2328,6 @@ function detectNewOrders(freshOrders){
   });
   return incoming.length > 0;
 }
-window.detectNewOrders = detectNewOrders;
 
 /* ================= রিফ্রেশ সব ================= */
 function reloadAllFromStorage(){
@@ -2430,18 +2412,27 @@ function renderAll(){
   });
 }
 
-/* নোট: আগে এখানে একটি localStorage 'storage' ইভেন্ট লিসেনার এবং প্রতি ৮
-   সেকেন্ডে একটি setInterval ছিল যা localStorage থেকে সরাসরি অর্ডার/গ্রাহক
-   ডেটা তুলনা করে "orders"/"users" ভ্যারিয়েবল রিসেট করত। এখন সব ডেটা
-   MongoDB API থেকে আসে (localStorage override শুধু in-memory cache), তাই
-   ওই পুরনো লজিকটি ছিল একটি বাগের কারণ: সার্ভার থেকে ফ্রেশ ডেটা এখনো লোড
-   না হওয়া পর্যন্ত loadData() খালি অ্যারে ফলব্যাক রিটার্ন করত, আর
-   তুলনাটি শুধু length ভিত্তিক হওয়ায় "orders" ভ্যারিয়েবল ভুলবশত খালি হয়ে
-   যেত — ফলে "অর্ডার ম্যানেজমেন্ট" এ অর্ডার একটু দেখা গিয়ে পরক্ষণেই
-   অদৃশ্য হয়ে যেত। এখন উপরের API bridge (প্রতি ১০ সেকেন্ডে) নিরাপদে
-   MongoDB থেকে ডেটা সিঙ্ক করে এবং টেক্সট আসলেই বদলেছে কিনা যাচাই করেই
-   renderAll()/detectNewOrders() কল করে, তাই এই পুরনো, অনিরাপদ লজিকটি
-   বাদ দেওয়া হলো। */
+/* একই ব্রাউজারে index.html থেকে অর্ডার/গ্রাহক যোগ হলে (অন্য ট্যাবে) লাইভ আপডেট */
+window.addEventListener('storage', function(e){
+  if (e.key === LS.orders){
+    const freshOrders = loadData(LS.orders, []);
+    detectNewOrders(freshOrders);
+  }
+  if ([LS.orders, LS.users, LS.products, LS.categories, LS.services].includes(e.key)){
+    reloadAllFromStorage();
+    renderAll();
+  }
+});
+/* একই ট্যাব খোলা থাকলে প্রতি ৮ সেকেন্ডে অর্ডার/গ্রাহক ডেটা রিফ্রেশ চেক */
+setInterval(function(){
+  const freshOrders = loadData(LS.orders, []);
+  const freshUsers = loadData(LS.users, []);
+  if (freshOrders.length !== orders.length || freshUsers.length !== users.length){
+    detectNewOrders(freshOrders);
+    orders = freshOrders; users = freshUsers;
+    renderAll();
+  }
+}, 8000);
 
 renderAll();
 

@@ -1,7 +1,0 @@
-/* Mobile bottom nav — match desktop navbar colors (#CA9100 active, #997D36 inactive) */
-.mobile-bottom-nav .nav-item { color: #997D36 !important; font-weight: 500 !important; }
-.mobile-bottom-nav .nav-item i { color: #997D36 !important; }
-.mobile-bottom-nav .nav-item span { color: #997D36 !important; }
-.mobile-bottom-nav .nav-item.active { color: #CA9100 !important; font-weight: 700 !important; }
-.mobile-bottom-nav .nav-item.active i { color: #CA9100 !important; }
-.mobile-bottom-nav .nav-item.active span { color: #CA9100 !important; font-weight: 700 !important; }

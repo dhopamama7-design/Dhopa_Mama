@@ -22,26 +22,20 @@
   'use strict';
 
   /* ======================================================================
-     ⚙️  ব্যাকএন্ড ঠিকানা এখানে হার্ডকোড করা নেই — dm-config.js একমাত্র
-     কনফিগ ফাইল। প্রতিটি পেজে dm-config.js এই ফাইলের আগে লোড হয়।
+     ⚙️  একমাত্র কনফিগারেশন — ব্যাকএন্ড সার্ভারের ঠিকানা।
+     ব্যাকএন্ড অন্য কোথাও ডিপ্লয় করলে শুধু নিচের এই একটি লাইন বদলান।
      ====================================================================== */
-  var API_BASE = (window.DM_API_BASE != null) ? window.DM_API_BASE : (window.API_BASE || '');
+  var API_BASE = 'https://dhopa-mama-ng4d.onrender.com';
+
+  /* ইচ্ছে করলে পেজে dm-api.js লোড করার আগে window.DM_API_BASE সেট করে
+     ওভাররাইড করা যায় (যেমন লোকাল টেস্টিং এ)। */
+  if (window.DM_API_BASE) API_BASE = window.DM_API_BASE;
   API_BASE = String(API_BASE).replace(/\/+$/, '');
-  window.API_BASE = API_BASE;
-  window.DM_API_BASE = API_BASE;
+  window.API_BASE = API_BASE;   
 
   var KEYS = ['categories', 'products', 'services', 'settings'];
   var CACHE_PREFIX = 'dm_snapshot_';
-  /* ── পোলিং নীতি ──────────────────────────────────────────────
-     আগে প্রতি ১০ সেকেন্ডে ৪টি করে রিকোয়েস্ট যেত — প্রতিটি খোলা ট্যাব
-     থেকে। Render ফ্রি টিয়ারে এটি অপ্রয়োজনীয় লোড। এখন:
-     • ইন্টারভাল ৬০ সেকেন্ড (window.DM_POLL_MS দিয়ে বদলানো যায়)
-     • ট্যাব ব্যাকগ্রাউন্ডে গেলে পোলিং সম্পূর্ণ বন্ধ
-     • ট্যাব সামনে এলে (throttle সহ) একবার রিফ্রেশ
-     • পরপর ব্যর্থ হলে exponential backoff (সর্বোচ্চ ৫ মিনিট)          */
-  var POLL_MS = Number(window.DM_POLL_MS) > 0 ? Number(window.DM_POLL_MS) : 60000;
-  var MAX_POLL_MS = 300000;
-  var MIN_FOREGROUND_GAP_MS = 15000;
+  var POLL_MS = 10000;    
 
   window.__API_DATA = window.__API_DATA || {};
 
@@ -98,7 +92,7 @@
         try { window.localStorage.setItem(CACHE_PREFIX + k, next); } catch (e) {}
         return true;
       })
-      .catch(function () { return null; });   // null = নেটওয়ার্ক/সার্ভার ব্যর্থতা
+      .catch(function () { return false; });
   }
 
   var pendingApply = false;
@@ -126,9 +120,6 @@
 
   function refreshAll() {
     return Promise.all(KEYS.map(fetchKey)).then(function (changedFlags) {
-      /* সব রিকোয়েস্ট ব্যর্থ হলে reject — কলার backoff চালু করবে */
-      var ok = changedFlags.filter(function (v) { return v !== null; }).length;
-      if (!ok) throw new Error('সব API রিকোয়েস্ট ব্যর্থ হয়েছে');
       if (changedFlags.indexOf(true) === -1) return false;
       runHooks();
       return true;
@@ -136,95 +127,17 @@
   }
   window.__dmRefresh = refreshAll;
 
-  /* ------------------------------------------------------------------
-     ৪) কোল্ড-স্টার্ট UI — Render ফ্রি টিয়ারে সার্ভার ঘুমিয়ে থাকলে প্রথম
-     রিকোয়েস্টে ৩০–৫০ সেকেন্ড লাগে। ইউজার যেন "সাইট নষ্ট" না ভাবে, তাই
-     ২.৫ সেকেন্ডের বেশি সময় লাগলে একটি ওয়েটিং ব্যানার দেখানো হয়।
-     ------------------------------------------------------------------ */
-  var waitTimer = null, banner = null;
+  /* প্রথম ফেচ এখনই শুরু হয় — DOM তৈরি হওয়ার প্রায় সাথে সাথেই আসল
+     দাম/পণ্য বসে যায়। */
+  refreshAll();
 
-  function showWaking() {
-    if (banner || !document.body) return;
-    banner = document.createElement('div');
-    banner.id = 'dm-wake-banner';
-    banner.setAttribute('role', 'status');
-    banner.innerHTML =
-      '<span class="dm-wake-spin" aria-hidden="true"></span>' +
-      '<span>সার্ভার চালু হচ্ছে… প্রথমবার লোড হতে ৩০–৫০ সেকেন্ড লাগতে পারে।</span>';
-    document.body.appendChild(banner);
-  }
-  function hideWaking() {
-    if (waitTimer) { clearTimeout(waitTimer); waitTimer = null; }
-    if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
-    banner = null;
-  }
-  function armWaking() {
-    if (waitTimer || banner) return;
-    waitTimer = setTimeout(function () {
-      waitTimer = null;
-      if (document.body) showWaking();
-      else document.addEventListener('DOMContentLoaded', showWaking, { once: true });
-    }, 2500);
-  }
+  /* অ্যাডমিন প্যানেলে পরিবর্তন করলে খোলা থাকা ট্যাবেও লাইভ দেখানোর জন্য */
+  setInterval(refreshAll, POLL_MS);
 
-  function injectWakeStyles() {
-    if (document.getElementById('dm-wake-style')) return;
-    var st = document.createElement('style');
-    st.id = 'dm-wake-style';
-    st.textContent =
-      '#dm-wake-banner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);' +
-      'z-index:99999;display:flex;align-items:center;gap:10px;max-width:92vw;' +
-      'padding:10px 16px;border-radius:999px;background:rgba(17,24,39,.92);color:#fff;' +
-      'font-size:14px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.25)}' +
-      '.dm-wake-spin{width:14px;height:14px;border-radius:50%;flex:0 0 auto;' +
-      'border:2px solid rgba(255,255,255,.35);border-top-color:#fff;' +
-      'animation:dm-wake-rot .8s linear infinite}' +
-      '@keyframes dm-wake-rot{to{transform:rotate(360deg)}}';
-    (document.head || document.documentElement).appendChild(st);
-  }
-  injectWakeStyles();
-
-  /* ------------------------------------------------------------------
-     ৫) পোলিং লুপ — ভিজিবিলিটি-অ্যাওয়্যার + backoff
-     ------------------------------------------------------------------ */
-  var timer = null, delay = POLL_MS, lastRun = 0, running = false;
-
-  function schedule(ms) {
-    if (timer) clearTimeout(timer);
-    if (document.hidden) { timer = null; return; }   // ব্যাকগ্রাউন্ডে পোলিং বন্ধ
-    timer = setTimeout(tick, ms);
-  }
-
-  function tick(force) {
-    if (running) return Promise.resolve(false);
-    if (!force && document.hidden) { schedule(delay); return Promise.resolve(false); }
-    running = true; lastRun = Date.now();
-    armWaking();
-    return refreshAll()
-      .then(function (changed) {
-        hideWaking();
-        delay = POLL_MS;                              // সফল → স্বাভাবিক ইন্টারভাল
-        return changed;
-      })
-      .catch(function (e) {
-        delay = Math.min(delay * 2, MAX_POLL_MS);     // ব্যর্থ → backoff
-        window.dmReportError && window.dmReportError(e, 'api-refresh');
-        return false;
-      })
-      .then(function (r) { running = false; schedule(delay); return r; });
-  }
-
-  /* প্রথম ফেচ এখনই — DOM তৈরি হওয়ার প্রায় সাথে সাথেই আসল দাম/পণ্য বসে যায় */
-  tick(true);
-
-  /* ট্যাব সামনে এলে রিফ্রেশ (খুব ঘন ঘন নয়) */
+  /* ট্যাব আবার সামনে এলে সাথে সাথে রিফ্রেশ */
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) { if (timer) { clearTimeout(timer); timer = null; } return; }
-    if (Date.now() - lastRun >= MIN_FOREGROUND_GAP_MS) tick(true);
-    else schedule(Math.max(1000, MIN_FOREGROUND_GAP_MS - (Date.now() - lastRun)));
+    if (!document.hidden) refreshAll();
   });
-
-  window.__dmRefresh = function () { return tick(true); };
 
   /* ------------------------------------------------------------------
      ৪) শেয়ার্ড হেল্পার — সব পেজ একইভাবে ইউজার টোকেন পড়তে পারে
@@ -242,35 +155,4 @@
   window.dmApiUrl = function (path) {
     return API_BASE + (String(path).charAt(0) === '/' ? '' : '/') + path;
   };
-
-  /* ------------------------------------------------------------------
-     ৬) ব্রাউজার-সাইড error monitoring — সব JS error/rejection সার্ভারে
-     পাঠানো হয় (/api/client-errors), যাতে লগে সমস্যা ধরা যায়।
-     ------------------------------------------------------------------ */
-  var sentErrors = 0;
-  window.dmReportError = function (err, where) {
-    if (sentErrors >= 5) return;                       // স্প্যাম প্রতিরোধ
-    sentErrors++;
-    var msg = (err && err.message) || String(err || 'unknown error');
-    try {
-      fetch(API_BASE + '/api/client-errors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: (where ? '[' + where + '] ' : '') + msg,
-          stack: (err && err.stack) || '',
-          page: location.pathname + location.search
-        }),
-        keepalive: true,
-        credentials: 'omit'
-      }).catch(function () {});
-    } catch (e) {}
-  };
-
-  window.addEventListener('error', function (e) {
-    window.dmReportError(e.error || e.message, 'window.onerror');
-  });
-  window.addEventListener('unhandledrejection', function (e) {
-    window.dmReportError(e.reason, 'unhandledrejection');
-  });
 })();

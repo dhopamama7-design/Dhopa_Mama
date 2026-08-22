@@ -33,8 +33,3 @@ Render এর `APPS_SCRIPT_URL` env-var সেট করুন।
   CLOUDINARY_*, APPS_SCRIPT_URL, NOTIFY_EMAIL`
 - Admin panel: Vercel — `admin_panel/admin.html`
 - Frontend: any static host — `frontend/`
-
-
----
-
-📄 আর্কিটেকচার/রক্ষণাবেক্ষণ আপডেটের বিস্তারিত: [REFACTOR.md](REFACTOR.md)
