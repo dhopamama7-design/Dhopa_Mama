@@ -1,0 +1,136 @@
+/* ===== নতুন যোগ করা মডালসমূহ (সার্ভিস বাছাই, চেকআউট, অর্ডার, একাউন্ট) ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:14px;max-width:480px;width:100%;max-height:88vh;overflow:auto;padding:22px}
+.modal-box h3{font-size:19px;margin-bottom:14px;color:var(--green-dark);font-family:var(--font-display)}
+.modal-close{float:right;background:none;border:none;font-size:18px;cursor:pointer;color:#888}
+
+/* প্রোডাক্ট মডালের উপরে বড় ছবি */
+.modal-product-hero{width:100%;height:170px;background:#fff;border:1px solid var(--border);border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px}
+.modal-product-hero img{width:100%;height:100%;object-fit:contain;padding:10px}
+.modal-product-hero i{font-size:56px;color:var(--green)}
+.modal-product-title{text-align:center;font-size:17px;font-weight:700;color:#1a1a1a;margin-bottom:16px;font-family:var(--font-display)}
+.svc-label{font-size:12px;color:#999;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;margin-bottom:2px}
+.svc-sublabel{font-size:12.5px;color:#a58a6e;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.svc-sublabel i{color:var(--green);font-size:11px}
+
+/* সার্ভিস অপশন রো — একাধিক সিলেক্ট করা যাবে (মাল্টি-সিলেক্ট চেকবক্স) */
+.service-option{display:flex;align-items:center;gap:12px;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;cursor:pointer;background:#fff;transition:border-color .2s,background .2s,box-shadow .2s,transform .15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.service-option:hover{border-color:#dcc9ad}
+.service-option:active{transform:scale(.98)}
+.service-option:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.service-option.active{border-color:var(--green);background:#FFF8E6;box-shadow:0 3px 12px rgba(196,122,30,.15)}
+
+.svc-thumb{width:56px;height:56px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;background:#f2ede4;overflow:hidden;border:1px solid var(--border);transition:box-shadow .2s,border-color .2s}
+.svc-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.service-option.active .svc-thumb{border-color:var(--green)}
+.service-option:hover .svc-thumb img{transform:scale(1.06)}
+
+.svc-info{flex:1;display:flex;flex-direction:column;gap:3px}
+.svc-name{font-size:14.5px;font-weight:600;color:#1a1a1a}
+.svc-price{font-size:14px;font-weight:700;color:var(--green-dark)}
+
+.svc-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s,transform .2s}
+.svc-check i{opacity:0;transform:scale(0);transition:opacity .18s,transform .18s}
+.service-option.active .svc-check{border-color:var(--green);background:var(--green)}
+.service-option.active .svc-check i{color:#fff;font-size:11px;opacity:1;transform:scale(1)}
+
+/* সিলেক্ট করার মুহূর্তের এনিমেশন */
+@keyframes svcPop{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.035)}
+  100%{transform:scale(1)}
+}
+.svc-pop{animation:svcPop .32s ease}
+@keyframes svcCheckPop{
+  0%{transform:scale(0) rotate(-20deg);opacity:0}
+  55%{transform:scale(1.25) rotate(6deg);opacity:1}
+  100%{transform:scale(1) rotate(0);opacity:1}
+}
+.svc-check-pop i{animation:svcCheckPop .34s cubic-bezier(.34,1.56,.64,1)}
+
+/* অন্তত একটি সার্ভিস থাকতেই হবে — শেষটি বাদ দেওয়ার চেষ্টা করলে হালকা শেক */
+@keyframes svcShake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-5px)}
+  40%{transform:translateX(5px)}
+  60%{transform:translateX(-4px)}
+  80%{transform:translateX(4px)}
+}
+.svc-shake{animation:svcShake .38s ease}
+
+.qty-row{display:flex;align-items:center;gap:12px;margin:16px 0}
+.qty-row button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:#fff;font-size:16px;cursor:pointer}
+.modal-total{font-weight:700;font-size:18px;margin:14px 0}
+.form-field{margin-bottom:12px}
+.form-field label{display:block;font-size:13px;margin-bottom:4px;color:#555}
+.form-field input,.form-field select,.form-field textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit}
+.btn-primary{width:100%;background:var(--green);color:#fff;border:none;padding:13px;border-radius:8px;font-size:15px;font-weight:600;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px}
+
+/* ===== চেকআউট মডাল — কার্ট-পপআপের মতো বটম-শিট ডিজাইন ===== */
+.checkout-overlay{align-items:flex-end;justify-content:center;padding:0}
+.checkout-sheet{background:#f5f5f5;width:100%;max-width:500px;max-height:92vh;border-radius:28px 28px 0 0;display:flex;flex-direction:column;overflow:hidden;animation:slideUp .3s ease}
+.checkout-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;background:#f5f5f5;flex-shrink:0}
+.checkout-body{overflow-y:auto;padding:0 16px 8px;flex:1;display:flex;flex-direction:column;gap:12px}
+.checkout-card{background:#fff;border-radius:16px;padding:16px}
+.checkout-card-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--green-dark);margin-bottom:12px}
+.checkout-card-title i{font-size:13px;color:var(--green)}
+.checkout-card .form-field:last-child{margin-bottom:0}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row-2 .form-field{margin-bottom:0}
+.checkout-footer{background:#fff;padding:18px 20px 26px;border-radius:20px 20px 0 0;margin-top:4px;flex-shrink:0}
+
+/* পেমেন্ট অপশন — bKash/Nagad এ ক্লিক করলে ডান পাশে নাম্বার এনিমেশন সহ দেখাবে */
+.pay-option{display:flex;align-items:center;gap:12px;border:1.5px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:10px;cursor:pointer;background:#fff;transition:border-color .2s,background .2s,box-shadow .2s,transform .15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.pay-option:last-of-type{margin-bottom:0}
+.pay-option:hover{border-color:#dcc9ad}
+.pay-option:active{transform:scale(.98)}
+.pay-option.active{border-color:var(--green);background:#FFF8E6;box-shadow:0 3px 12px rgba(196,122,30,.15)}
+.pay-option-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.pay-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0;overflow:hidden}
+.pay-icon img{width:100%;height:100%;object-fit:cover;display:block}
+.pay-icon-cod{background:#4aa3e0}
+.pay-name{font-size:14.5px;font-weight:600;color:#1a1a1a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.pay-option-right{max-width:0;opacity:0;overflow:hidden;transition:max-width .35s ease,opacity .25s ease;white-space:nowrap;text-align:right;flex-shrink:0}
+.pay-option.active .pay-option-right.has-number{max-width:190px;opacity:1;margin-left:6px}
+.pay-number-label{font-size:10px;color:#999;display:block;line-height:1.3}
+.pay-number-row{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.pay-number{font-size:13.5px;font-weight:700;color:var(--green-dark);letter-spacing:.2px}
+.copy-btn{background:#fff2df;border:none;color:var(--green-dark);cursor:pointer;font-size:12px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,color .2s,transform .2s}
+.copy-btn:hover{background:#ffe6c2}
+.copy-btn:active{transform:scale(.9)}
+.copy-btn.copied{background:#e3f3e3;color:#CA9100}
+@keyframes payNumberIn{
+  0%{transform:translateX(12px);opacity:0}
+  100%{transform:translateX(0);opacity:1}
+}
+.pay-option-right.pay-anim{animation:payNumberIn .32s ease}
+
+.pay-check{width:23px;height:23px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s;margin-left:4px}
+.pay-check i{opacity:0;transform:scale(0);transition:opacity .18s,transform .18s}
+.pay-option.active .pay-check{border-color:var(--green);background:var(--green)}
+.pay-option.active .pay-check i{color:#fff;font-size:10px;opacity:1;transform:scale(1)}
+
+/* ===== অর্ডার কনফার্ম হওয়ার পর সুন্দর সাফল্য মডাল ===== */
+.success-box{background:#fff;border-radius:22px;max-width:380px;width:100%;padding:34px 26px 26px;text-align:center;animation:successPop .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes successPop{0%{transform:scale(.82);opacity:0}100%{transform:scale(1);opacity:1}}
+.success-check-wrap{width:86px;height:86px;margin:0 auto 18px}
+.success-check-circle{width:100%;height:100%;display:block}
+.success-check-circle-bg{fill:none;stroke:var(--green);stroke-width:4;stroke-dasharray:227;stroke-dashoffset:227;animation:successCircle .55s ease forwards}
+.success-check-mark{fill:none;stroke:var(--green);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:46;stroke-dashoffset:46;animation:successMark .32s .5s ease forwards}
+@keyframes successCircle{to{stroke-dashoffset:0}}
+@keyframes successMark{to{stroke-dashoffset:0}}
+.success-title{font-size:19px;font-weight:700;color:#1a1a1a;margin-bottom:6px;font-family:var(--font-display)}
+.success-sub{font-size:13.5px;color:#888;margin-bottom:22px;line-height:1.5}
+.success-details{background:#faf6ef;border-radius:14px;padding:6px 16px;margin-bottom:22px;text-align:left}
+.success-row{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;padding:10px 0;color:#777;gap:10px}
+.success-row span{flex-shrink:0}
+.success-row b{color:#1a1a1a;font-weight:700;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.success-row:not(:last-child){border-bottom:1px dashed var(--border)}
+.auth-tabs{display:flex;gap:8px;margin-bottom:16px;background:#f5f0e6;border-radius:8px;padding:4px}
+.auth-tab{flex:1;border:none;background:transparent;padding:9px 6px;border-radius:6px;font-size:13px;font-weight:600;color:#997D36;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit}
+.auth-tab.active{background:#fff;color:var(--green);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.order-status-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.order-status-item:last-child{border-bottom:none}
+.status-pill{font-size:12px;padding:3px 10px;border-radius:20px;background:#fff3e0;color:var(--green-dark)}

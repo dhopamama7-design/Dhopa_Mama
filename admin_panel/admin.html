@@ -522,7 +522,7 @@ tr.row-new td{background:var(--brand-light)!important;}
   ব্যবহৃত হয় যাতে admin panel এর বাকি কোড অপরিবর্তিত থাকতে পারে।
   শুধু admin login token টি sessionStorage এ রাখা হয় (session ভিত্তিক)।
 */
-window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // ← Render URL এখানে বসান
+/* API_BASE এখন dm-config.js থেকে আসে — এখানে আর হার্ডকোড নেই */
 
 (function(){
   var LS_MAP = {
@@ -671,8 +671,14 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
   }
   window.showLoginScreen = showLoginScreen;
   window.adminLogout = function(){
-    clearToken();
-    showLoginScreen();
+    // সার্ভারেও টোকেন বাতিল করা হয় (revocation), তারপর লোকাল টোকেন মুছে ফেলা হয়
+    var t = getToken();
+    var done = function(){ clearToken(); showLoginScreen(); };
+    if (!t) return done();
+    fetch(window.API_BASE + '/api/admin/logout', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + t }
+    }).then(done).catch(done);
   };
 
   document.addEventListener('DOMContentLoaded', function(){

@@ -1,12 +1,13 @@
 {
-  "routes": [
+  "rewrites": [
+    { "source": "/((?!robots\\.txt).*)", "destination": "/admin.html" }
+  ],
+  "headers": [
     {
-      "src": "/(.*)",
-      "dest": "/admin.html"
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+      ]
     }
   ]
-}  
-
-
-
-
+}

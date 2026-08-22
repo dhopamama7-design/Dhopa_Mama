@@ -3,8 +3,29 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Login | Dhopa Mama</title>
-<meta name="description" content="ধোপা মামা অ্যাকাউন্টে Login করুন অথবা Sign Up করুন — ঘরে বসে লন্ড্রি সার্ভিস অর্ডার করতে।" />
+<!-- ===== একমাত্র API কনফিগ + শেয়ার্ড API ব্রিজ (সব পেজে একই) ===== -->
+<script src="dm-config.js"></script>
+<script src="dm-api.js"></script>
+<title>লগইন ও সাইন আপ — ধোপা মামা (Dhopa Mama) অ্যাকাউন্ট</title>
+<meta name="description" content="ধোপা মামা অ্যাকাউন্টে লগইন করুন বা নতুন সাইন আপ করুন — অর্ডার ট্র্যাক করতে ও দ্রুত পিকআপ বুক করতে।" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+
+<!-- ===== Canonical / hreflang / Open Graph / Twitter (page specific) ===== -->
+<link rel="canonical" href="https://dhopamama.shop/account.html" />
+<link rel="alternate" hreflang="bn-BD" href="https://dhopamama.shop/account.html" />
+<link rel="alternate" hreflang="en" href="https://dhopamama.shop/account.html" />
+<link rel="alternate" hreflang="x-default" href="https://dhopamama.shop/account.html" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Dhopa Mama (ধোপা মামা)" />
+<meta property="og:locale" content="bn_BD" />
+<meta property="og:url" content="https://dhopamama.shop/account.html" />
+<meta property="og:title" content="লগইন ও সাইন আপ — ধোপা মামা (Dhopa Mama)" />
+<meta property="og:description" content="অ্যাকাউন্টে লগইন করে অর্ডার ট্র্যাক করুন ও দ্রুত পিকআপ বুক করুন।" />
+<meta property="og:image" content="https://dhopamama.shop/assets/og-cover.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="লগইন ও সাইন আপ — ধোপা মামা (Dhopa Mama)" />
+<meta name="twitter:description" content="অ্যাকাউন্টে লগইন করে অর্ডার ট্র্যাক করুন ও দ্রুত পিকআপ বুক করুন।" />
+<meta name="twitter:image" content="https://dhopamama.shop/assets/og-cover.jpg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&family=Baloo+Da+2:wght@600;700;800&display=swap" rel="stylesheet">
@@ -485,86 +506,8 @@ button{font-family:inherit;cursor:pointer}
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style id="dm-global-override">
-/* === Gold / mustard palette override === */
-:root{
-  --green:#CA9100 !important;
-  --green-dark:#997D36 !important;
-  --badge:#77612A !important;
-  --text:#55451E !important;
-  --muted:#997D36 !important;
-  --border:#E6BB50 !important;
-  --accent:#CA9100 !important;
-  --accent-soft:#FFF3D6 !important;
-  --ink:#55451E !important;
-  --line:#E6BB50 !important;
-  --violet-900:#55451E !important;
-  --violet-800:#77612A !important;
-  --violet-700:#997D36 !important;
-  --violet-600:#CA9100 !important;
-  --violet-500:#E6BB50 !important;
-  --violet-100:#FFF3D6 !important;
-  --paper:#FFFCEF !important;
-  --gold:#E6BB50 !important;
-}
-/* === Remove ALL border-radius everywhere === */
-*, *::before, *::after { border-radius: 0 !important; }
-/* Hide legacy modals for account/orders/checkout auth flow */
-#accountModalOverlay, #ordersModalOverlay { display: none !important; }
-/* Recolor primary UI hits */
-.btn-primary,.btn-checkout,.sidebar-user-sign{background:#CA9100 !important;color:#fff !important;border-color:#CA9100 !important}
-.btn-primary:hover,.btn-checkout:hover{background:#997D36 !important;border-color:#997D36 !important}
-.badge,.new-badge{background:#77612A !important;color:#fff !important}
-a{color:inherit}
-</style>
-<script>
-(function(){
-  function _getUser(){
-    try{
-      var raw = localStorage.getItem('dmUser') || localStorage.getItem('dm_user');
-      if(raw) return JSON.parse(raw);
-    }catch(e){}
-    return null;
-  }
-  window.isLoggedIn = function(){ return !!_getUser(); };
-  window.getCurrentUser = _getUser;
-  function requireLogin(){
-    try{ localStorage.setItem('dmRedirectAfterLogin', location.href); }catch(e){}
-    alert('অর্ডার করার জন্য প্রথমে Login করুন।');
-    window.location.href='account.html';
-  }
-  window.dmRequireLogin = requireLogin;
-  // Replace all legacy modal openers with page navigation
-  window.openAccountModal = function(){ window.location.href='account.html'; };
-  window.closeAccountModal = function(){};
-  window.openOrdersModal = function(){
-    if(!window.isLoggedIn()){ requireLogin(); return; }
-    window.location.href='orders.html';
-  };
-  window.closeOrdersModal = function(){};
-
-  // Update Login label if logged in
-  function paintAuth(){
-    var u = _getUser(); if(!u) return;
-    var name = (u.name||u.mobile||u.email||'Account').split(/[@\s]/)[0];
-    ['dmAcctLabel','dmAcctLabelMb'].forEach(function(id){var e=document.getElementById(id);if(e) e.textContent=name;});
-    // Header sign in in index-like nav
-    document.querySelectorAll('#headerSignInBtn span, .sidebar-user-sign').forEach(function(el){
-      if(el.tagName==='SPAN') el.textContent = name;
-    });
-  }
-  document.addEventListener('DOMContentLoaded', paintAuth);
-
-  // Guard order/checkout actions site-wide
-  document.addEventListener('click', function(e){
-    var t = e.target.closest('[data-require-login], .btn-checkout, [onclick*="submitOrder"], [onclick*="placeOrder"], [onclick*="confirmOrder"], [onclick*="openCheckout"]');
-    if(!t) return;
-    if(window.isLoggedIn()) return;
-    e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-    requireLogin();
-  }, true);
-})();
-</script>
+<link rel="stylesheet" href="css/dm-shared-3.css">
+<script src="js/dm-shared-3.js"></script>
 
 
 </head>
@@ -647,11 +590,13 @@ a{color:inherit}
     <a href="services.html" class="sidebar-menu-item"><i class="fas fa-concierge-bell"></i><span>Services</span></a>
     <a href="about.html" class="sidebar-menu-item"><i class="fas fa-info-circle"></i><span>About Us</span></a>
     <a href="contact.html" class="sidebar-menu-item"><i class="fas fa-address-card"></i><span>Contact</span></a>
+    <a href="orders.html" class="sidebar-menu-item"><i class="fas fa-box-open"></i><span>My Orders (আমার অর্ডার)</span></a>
     <a href="account.html" class="sidebar-menu-item"><i class="fas fa-sign-in-alt"></i><span>Login / Account</span></a>
   </div>
 </div>
 
 <!-- ===== Desktop Header (হুবহু index.html) ===== -->
+<!-- dm:partial header-account -->
 <header class="header">
   <div class="container header-top">
     <a href="index.html" class="logo">
@@ -662,6 +607,7 @@ a{color:inherit}
       <a href="services.html">Services</a>
       <a href="about.html">About Us</a>
       <a href="contact.html">Contact</a>
+      <a href="orders.html">My Orders</a>
     </nav>
     <div class="search-box" id="desktopSearchWrap">
       <i class="fas fa-search s-icon" onclick="runProductSearch('desktopSearchInput')" style="cursor:pointer"></i>
@@ -676,6 +622,7 @@ a{color:inherit}
     </div>
   </div>
 </header>
+<!-- /dm:partial -->
 
 <div class="auth-shell">
 
@@ -699,7 +646,7 @@ a{color:inherit}
 
     <div class="auth-hero-body">
       <span class="auth-hero-tag"><svg viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg> ফরিদপুর সদরের বিশ্বস্ত লন্ড্রি সার্ভিস</span>
-      <h1 class="auth-hero-title">পরিষ্কার জীবন <br><em>শুরু হোক এখান থেকে</em></h1>
+      <h2 class="auth-hero-title">পরিষ্কার জীবন <br><em>শুরু হোক এখান থেকে</em></h2>
       <p class="auth-hero-sub">
         অ্যাকাউন্ট তৈরি করুন আর ঘরে বসেই অর্ডার করুন — ফ্রি হোম পিকআপ ও ডেলিভারিসহ
         ওয়াশ ওয়াশ, ড্রাই ওয়াশ ও আয়রন সার্ভিস। এখনই যুক্ত হোন।
@@ -887,7 +834,7 @@ a{color:inherit}
 </div>
 
 <script>
-window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // ← Render URL (index.html এর সাথে মিলিয়ে)
+/* API_BASE এখন dm-config.js থেকে আসে — এখানে আর হার্ডকোড নেই */
 var AUTH_KEY = 'dm_auth';
 var mode = 'signin';
 
@@ -1659,6 +1606,7 @@ document.getElementById('forgotOverlay').addEventListener('click', function(e){
 </section>
 
 <!-- ===== Footer (matches index.html) ===== -->
+<!-- dm:partial footer-account -->
 <footer class="site-footer">
   <div class="container">
     <div class="site-footer-grid">
@@ -1717,6 +1665,7 @@ document.getElementById('forgotOverlay').addEventListener('click', function(e){
     Copyright © Dhopa Mama 2026 – All Rights Reserved |
   </div>
 </footer>
+<!-- /dm:partial -->
 
 <!-- Invoice modal -->
 <div class="modal-overlay" id="invoiceOverlay">
@@ -2281,73 +2230,14 @@ return '' +
 </script>
 
 
-<style id="page-transition-css">
-/* ===== Page Transition ===== */
-#page-transition-overlay {
-  position: fixed; inset: 0; z-index: 9999;
-  background: #fff;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-#page-transition-overlay.active { opacity: 1; pointer-events: all; }
-body { animation: pageReveal .28s ease forwards; }
-@keyframes pageReveal { from { opacity:0; } to { opacity:1; } }
-</style>
+<link rel="stylesheet" href="css/dm-shared-6.css">
 <div id="page-transition-overlay"></div>
 
-<style id="mobile-nav-color-override">
-/* Mobile bottom nav — match desktop navbar colors (#CA9100 active, #997D36 inactive) */
-.mobile-bottom-nav .nav-item { color: #997D36 !important; font-weight: 500 !important; }
-.mobile-bottom-nav .nav-item i { color: #997D36 !important; }
-.mobile-bottom-nav .nav-item span { color: #997D36 !important; }
-.mobile-bottom-nav .nav-item.active { color: #CA9100 !important; font-weight: 700 !important; }
-.mobile-bottom-nav .nav-item.active i { color: #CA9100 !important; }
-.mobile-bottom-nav .nav-item.active span { color: #CA9100 !important; font-weight: 700 !important; }
-</style>
+<link rel="stylesheet" href="css/dm-shared-7.css">
 
-<script id="page-transition-js">
-(function(){
-  var overlay = document.getElementById('page-transition-overlay');
-  if(!overlay) return;
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       a.target === '_blank' || href.startsWith('http') || href.startsWith('//')) return;
-    var onclick = a.getAttribute('onclick') || '';
-    if(onclick.indexOf('return false') !== -1) return;
-    e.preventDefault();
-    overlay.classList.add('active');
-    setTimeout(function(){ window.location.href = href; }, 230);
-  }, true);
-})();
-</script>
+<script src="js/dm-shared-9.js"></script>
 
-<script id="scroll-nav-js">
-(function(){
-  var lastY = window.pageYOffset || 0;
-  var ticking = false;
-  function update(){
-    var y = window.pageYOffset || 0;
-    var diff = y - lastY;
-    lastY = y;
-    document.querySelectorAll('.header, .mobile-header').forEach(function(h){
-      if(diff > 4 && y > 70){
-        h.style.transition = 'transform .3s ease';
-        h.style.transform = 'translateY(-110%)';
-      } else if(diff < -2 || y <= 70){
-        h.style.transition = 'transform .3s ease';
-        h.style.transform = 'translateY(0)';
-      }
-    });
-    ticking = false;
-  }
-  window.addEventListener('scroll', function(){
-    if(!ticking){ requestAnimationFrame(update); ticking=true; }
-  }, {passive:true});
-})();
-</script>
+<script src="js/dm-shared-10.js"></script>
 
 </body>
 </html>

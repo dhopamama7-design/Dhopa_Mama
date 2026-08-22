@@ -1,0 +1,30 @@
+/* === Gold / mustard palette override === */
+:root{
+  --green:#CA9100 !important;
+  --green-dark:#997D36 !important;
+  --badge:#77612A !important;
+  --text:#55451E !important;
+  --muted:#997D36 !important;
+  --border:#E6BB50 !important;
+  --accent:#CA9100 !important;
+  --accent-soft:#FFF3D6 !important;
+  --ink:#55451E !important;
+  --line:#E6BB50 !important;
+  --violet-900:#55451E !important;
+  --violet-800:#77612A !important;
+  --violet-700:#997D36 !important;
+  --violet-600:#CA9100 !important;
+  --violet-500:#E6BB50 !important;
+  --violet-100:#FFF3D6 !important;
+  --paper:#FFFCEF !important;
+  --gold:#E6BB50 !important;
+}
+/* === Remove ALL border-radius everywhere === */
+*, *::before, *::after { border-radius: 0 !important; }
+/* Hide legacy modals for account/orders/checkout auth flow */
+#accountModalOverlay, #ordersModalOverlay { display: none !important; }
+/* Recolor primary UI hits */
+.btn-primary,.btn-checkout,.sidebar-user-sign{background:#CA9100 !important;color:#fff !important;border-color:#CA9100 !important}
+.btn-primary:hover,.btn-checkout:hover{background:#997D36 !important;border-color:#997D36 !important}
+.badge,.new-badge{background:#77612A !important;color:#fff !important}
+a{color:inherit}
