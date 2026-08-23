@@ -2151,28 +2151,9 @@ for (var __ci = cats.length - 1; __ci >= 0; __ci--) { if (cats[__ci].enabled ===
 var catLabelMap = {};
 cats.forEach(function(c){ if (c.key) catLabelMap[c.key] = c.n; });
 
-/* 
-   ========================================================================
-   index.html এ কোথায় পরিবর্তন করবেন:
-   
-   লাইন ২১৫৬ থেকে লাইন ২২৫১ পর্যন্ত নিচের কোড দিয়ে প্রতিস্থাপন করুন
-   
-   স্টেপ:
-   1. index.html খুলুন
-   2. লাইন ২১৫৬ খুঁজে পান (Ctrl+G, গিয়ে লাইন)
-   3. এই সম্পূর্ণ ব্লক (লাইন ২১৫৬ - ২২৫১) সিলেক্ট করুন
-   4. নিচের কোড দিয়ে রিপ্লেস করুন
-   ========================================================================
-*/
-
-// ============================================================
-// ☝️  নতুন index.html কোড শুরু এখানে
-// ============================================================
-
-let products = [];  // 🔥 প্রথমে খালি রাখুন
-
-// ডিফল্ট পণ্যের তালিকা (এডমিন থেকে ডেটা না এলে এটি ব্যবহার হবে)
-const DEFAULT_PRODUCTS = [
+/* সার্ভিস মূল্য: normal = ওয়াশ= ড্রাই ওয়াশ, iron = শুধু আয়রন
+   যেই সার্ভিস null/undefined থাকবে, সেটি অ্যাডমিন বন্ধ রেখেছেন ধরে নিয়ে গ্রাহক তা দেখতে বা বাছাই করতে পারবে না */
+let products = window.__pickApi("products", [
   {t:"Shirt (শার্ট)",icon:"fa-tshirt",cat:"men-wear",services:{normal:10,dry:15,iron:5},img:"assets/ad636740391c.jpg"},
   {t:"T-Shirt / গেঞ্জি",icon:"fa-tshirt",cat:"men-wear",services:{normal:10,dry:15,iron:5},img:"assets/611d54822ada.jpg"},
   {t:"Pant (প্যান্ট)",icon:"fa-socks",cat:"men-wear",services:{normal:15,dry:25,iron:6},img:"assets/f4be16c72642.jpg"},
@@ -2194,61 +2175,81 @@ const DEFAULT_PRODUCTS = [
   {t:"Quilt / কাঁথা",icon:"fa-mitten",cat:"winter-wear",services:{normal:180,dry:250,iron:null},img:"assets/61c839d08ab6.jpg"},
   {t:"Jacket (জ্যাকেট)",icon:"fa-mitten",cat:"winter-wear",services:{normal:null,dry:90,iron:20},img:"assets/c2ae6f5bd89c.jpg"},
   {t:"Sweater / Hoodie",icon:"fa-mitten",cat:"winter-wear",services:{normal:40,dry:70,iron:15},img:"assets/c2a1e98fd2b9.jpg"}
-];
-
+]);
 /* অ্যাডমিন থেকে বন্ধ (disabled) করা প্রোডাক্ট ওয়েবসাইটে দেখানো হবে না */
-// (এই ফিল্টারটি renderProducts() এর মধ্যে আছে, তাই এখানে নতুন করে করার প্রয়োজন নেই)
+products = products.filter(function(p){ return p.enabled !== false; });
 
-// ============================================================
-// 🔥 এটি গুরুত্বপূর্ণ: প্রথম রেন্ড করার আগে API ডেটা আসার জন্য অপেক্ষা করুন
-// ============================================================
+document.getElementById('categoryRow').innerHTML=cats.map(function(c){
+  var count = c.key ? products.filter(function(p){ return p.cat === c.key; }).length : products.length;
+  return '<a href="'+c.href+'" class="cat-card" style="--cc:'+c.color+'"'
+    + (c.key ? ' data-cat="'+c.key+'" onclick="return handleCategoryLinkClick(event,\''+c.key+'\')"' : '')
+    + '>'
+    + (c.img ? '<img loading="lazy" decoding="async" src="'+c.img+'" alt="'+c.n+'" class="cat-card-photo">' : '')
+    + '<div class="cat-card-overlay"></div>'
+    + '<div class="cat-card-text">'
+    +   '<span class="cat-card-icon"><i class="fas '+c.icon+'"></i></span>'
+    +   '<span class="cat-card-name">'+c.n+'</span>'
+    +   '<span class="cat-card-count">('+count+' Products)</span>'
+    + '</div>'
+    + '</a>';
+}).join('');
 
-if (typeof window.__dmOnReady === 'function') {
-  // নতুন dm-api.js ব্যবহার করছেন (FIXED সংস্করণ)
-  window.__dmOnReady(function(apiData) {
-    // প্রথম ডেটা লোড হয়েছে - এখন আসল মূল্য দিয়ে products সেট করুন
-    products = window.__pickApi("products", DEFAULT_PRODUCTS);
-    products = products.filter(function(p){ return p.enabled !== false; });
-    renderProducts();  // ✅ এখন সঠিক ডেটা দিয়ে রেন্ড করুন
-  });
-  
-  // API থেকে ডেটা আপডেট হলে re-render করুন
-  if (typeof window.__dmOnData === 'function') {
-    window.__dmOnData(function(apiData) {
-      if (apiData && apiData.products && Array.isArray(apiData.products)) {
-        products = apiData.products.filter(function(p){ return p.enabled !== false; });
-        renderProducts();  // ✅ নতুন মূল্য দিয়ে রি-রেন্ড করুন
-      }
-    });
-  }
-} else {
-  // ফলব্যাক: যদি পুরনো dm-api.js থাকে বা __dmOnReady না থাকে
-  products = window.__pickApi("products", DEFAULT_PRODUCTS);
-  products = products.filter(function(p){ return p.enabled !== false; });
-  renderProducts();  // ডিফল্ট বা cached ডেটা দিয়ে রেন্ড করুন
+function serviceLabel(key){
+  return key==='normal' ? 'ওয়াশ' : key==='dry' ? 'ড্রাই ওয়াশ' : '';
 }
 
-// ============================================================
-// ☝️  নতুন index.html কোড শেষ
-// ============================================================
+var activeCategory = 'all';   // 'all' অথবা men-wear/women-wear/winter-wear/home-linen/suits
+var searchQuery = '';         // সার্চ বক্সে লেখা টেক্সট
 
-/* 
-   ============================================================
-   ⚠️  পুরনো কোড যা সরিয়ে ফেলেছেন:
-   ============================================================
+function renderProducts(){
+  var grid = document.getElementById('productsGrid');
+  var query = (searchQuery || '').trim().toLowerCase();
 
-   ❌ এই লাইনগুলি আর থাকবে না:
+  var visibleIdx = products.map((p, idx) => idx).filter(idx => {
+    var p = products[idx];
+    if (activeCategory !== 'all' && p.cat !== activeCategory) return false;
+    if (query && p.t.toLowerCase().indexOf(query) === -1) return false;
+    return true;
+  });
 
-   let products = window.__pickApi("products", [
-     {t:"Shirt (শার্ট)",icon:"fa-tshirt",cat:"men-wear",services:{normal:10,dry:15,iron:5},img:"assets/ad636740391c.jpg"},
-     ...সব ডিফল্ট ডেটা...
-   ]);
-   products = products.filter(function(p){ return p.enabled !== false; });
-   
-   ...অন্যান্য কোড...
-   
-   renderProducts();  // এই লাইন সরিয়ে ফেলেছি
-*/
+  if (visibleIdx.length === 0){
+    var msg = query
+      ? `"${searchQuery}" এর জন্য কোনো প্রোডাক্ট পাওয়া যায়নি।`
+      : 'এই ক্যাটাগরিতে এখনো কোনো প্রোডাক্ট নেই।';
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:50px 16px;color:#999">
+        <i class="fas fa-search" style="font-size:40px;color:#ddd;display:block;margin-bottom:14px"></i>
+        <p style="font-size:15px">${msg}</p>
+        ${activeCategory !== 'all' ? `<a href="#" onclick="resetCategoryFilter();return false;" style="display:inline-block;margin-top:14px;color:var(--green);font-weight:600;border-bottom:2px solid var(--green);padding-bottom:2px">সকল প্রোডাক্ট দেখুন</a>` : ''}
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = visibleIdx.map(idx=>{
+    var p = products[idx];
+    return `
+    <div class="product-card">
+      <div class="product-img" style="display:flex;align-items:center;justify-content:center">
+        ${p.img ? `<img loading="lazy" decoding="async" src="${p.img}" alt="${p.t}">` : `<i class="fas ${p.icon}" style="font-size:54px;color:var(--green)"></i>`}
+      </div>
+
+      <div class="product-info">
+        <div class="product-title">${p.t}</div>
+        <div class="product-price">${
+          (()=>{
+            var keys = Object.keys(p.services).filter(k=>k!=='iron' && p.services[k]!=null);
+            var parts = keys.map(k=>serviceLabel(k)+' ৳'+p.services[k]).filter(Boolean).join(' • ');
+            var disc = p.discountPrice!=null ? ' <span class="old">৳'+p.discountPrice+'</span>' : '';
+            return parts + disc;
+          })()
+        }</div>
+        <button class="btn-cart" onclick="openProductModal(${idx})">সার্ভিস বাছাই করুন</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+renderProducts();
+
 /* ===================== ক্যাটাগরি ফিল্টার কার্যকারিতা ===================== */
 function handleCategoryLinkClick(event, key){
   if (event) event.preventDefault();
