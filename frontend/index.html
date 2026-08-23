@@ -2153,7 +2153,8 @@ cats.forEach(function(c){ if (c.key) catLabelMap[c.key] = c.n; });
 
 /* সার্ভিস মূল্য: normal = ওয়াশ= ড্রাই ওয়াশ, iron = শুধু আয়রন
    যেই সার্ভিস null/undefined থাকবে, সেটি অ্যাডমিন বন্ধ রেখেছেন ধরে নিয়ে গ্রাহক তা দেখতে বা বাছাই করতে পারবে না */
-let products = window.__pickApi("products", [
+// 🔥 ডিফল্ট পণ্য ডেটা - শুধু fallback হিসেবে
+const DEFAULT_PRODUCTS = [
   {t:"Shirt (শার্ট)",icon:"fa-tshirt",cat:"men-wear",services:{normal:10,dry:15,iron:5},img:"assets/ad636740391c.jpg"},
   {t:"T-Shirt / গেঞ্জি",icon:"fa-tshirt",cat:"men-wear",services:{normal:10,dry:15,iron:5},img:"assets/611d54822ada.jpg"},
   {t:"Pant (প্যান্ট)",icon:"fa-socks",cat:"men-wear",services:{normal:15,dry:25,iron:6},img:"assets/f4be16c72642.jpg"},
@@ -2175,9 +2176,10 @@ let products = window.__pickApi("products", [
   {t:"Quilt / কাঁথা",icon:"fa-mitten",cat:"winter-wear",services:{normal:180,dry:250,iron:null},img:"assets/61c839d08ab6.jpg"},
   {t:"Jacket (জ্যাকেট)",icon:"fa-mitten",cat:"winter-wear",services:{normal:null,dry:90,iron:20},img:"assets/c2ae6f5bd89c.jpg"},
   {t:"Sweater / Hoodie",icon:"fa-mitten",cat:"winter-wear",services:{normal:40,dry:70,iron:15},img:"assets/c2a1e98fd2b9.jpg"}
-]);
-/* অ্যাডমিন থেকে বন্ধ (disabled) করা প্রোডাক্ট ওয়েবসাইটে দেখানো হবে না */
-products = products.filter(function(p){ return p.enabled !== false; });
+];
+
+// 🔥 products variable শুরুতে খালি - API ডেটা আসার পরে পূর্ণ হবে
+let products = [];
 
 document.getElementById('categoryRow').innerHTML=cats.map(function(c){
   var count = c.key ? products.filter(function(p){ return p.cat === c.key; }).length : products.length;
@@ -2248,7 +2250,30 @@ function renderProducts(){
     </div>`;
   }).join('');
 }
-renderProducts();
+
+// 🔥 API ডেটা লোড হওয়ার পরে renderProducts() কল করুন
+if (typeof window.__dmOnReady === 'function') {
+  window.__dmOnReady(function(apiData) {
+    products = window.__pickApi("products", DEFAULT_PRODUCTS);
+    products = products.filter(function(p){ return p.enabled !== false; });
+    renderProducts();
+  });
+  
+  // API ডেটা আপডেট হলে re-render করুন
+  if (typeof window.__dmOnData === 'function') {
+    window.__dmOnData(function(apiData) {
+      if (apiData && apiData.products && Array.isArray(apiData.products)) {
+        products = apiData.products.filter(function(p){ return p.enabled !== false; });
+        renderProducts();
+      }
+    });
+  }
+} else {
+  // ফলব্যাক (পুরনো dm-api.js থাকলে)
+  products = window.__pickApi("products", DEFAULT_PRODUCTS);
+  products = products.filter(function(p){ return p.enabled !== false; });
+  renderProducts();
+}
 
 /* ===================== ক্যাটাগরি ফিল্টার কার্যকারিতা ===================== */
 function handleCategoryLinkClick(event, key){
