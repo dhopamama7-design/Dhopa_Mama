@@ -39,22 +39,6 @@
 
   window.__API_DATA = window.__API_DATA || {};
 
-  /* 🔥 নতুন: প্রথম ডেটা লোড সম্পন্ন হয়েছে কিনা */
-  window.__dmReady = false;
-  var readyHooks = [];
-  
-  window.__dmOnReady = function (fn) {
-    if (typeof fn === 'function') {
-      if (window.__dmReady) {
-        /* ইতিমধ্যে প্রস্তুত হয়ে গেছে, তো সাথে সাথে কল করো */
-        fn(window.__API_DATA);
-      } else {
-        /* এখনও প্রস্তুত হয়নি, তো queue করো */
-        readyHooks.push(fn);
-      }
-    }
-  };
-
   /* রেন্ডার হুক — পেজ চাইলে window.__dmOnData(fn) দিয়ে নিজের রেন্ডার
      ফাংশন রেজিস্টার করতে পারে। পুরনো `window.__rerenderFromApi` ও সাপোর্টেড। */
   var hooks = [];
@@ -143,23 +127,9 @@
   }
   window.__dmRefresh = refreshAll;
 
-  /* 🔥 প্রথম ফেচ শেষ হলে ready hooks কল করা */
-  function notifyReady() {
-    if (window.__dmReady) return; /* দুইবার কল হবে না */
-    window.__dmReady = true;
-    var toCall = readyHooks.slice();
-    readyHooks = [];
-    toCall.forEach(function (fn) {
-      try { fn(window.__API_DATA); }
-      catch (e) { console.warn('[dm-api] ready hook ব্যর্থ:', e); }
-    });
-  }
-
   /* প্রথম ফেচ এখনই শুরু হয় — DOM তৈরি হওয়ার প্রায় সাথে সাথেই আসল
      দাম/পণ্য বসে যায়। */
-  refreshAll().then(function () {
-    notifyReady();
-  });
+  refreshAll();
 
   /* অ্যাডমিন প্যানেলে পরিবর্তন করলে খোলা থাকা ট্যাবেও লাইভ দেখানোর জন্য */
   setInterval(refreshAll, POLL_MS);
