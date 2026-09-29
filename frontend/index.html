@@ -1033,6 +1033,7 @@ window.API_BASE = window.API_BASE || 'https://dhopa-mama-ng4d.onrender.com'; // 
       .then(function(data){ if (data !== null && data !== undefined) window.__API_DATA[k] = data; })
       .catch(function(){});
   })).then(function(){
+    window.__apiFirstLoadDone = true;   // প্রথম ফেচ শেষ (সফল বা ব্যর্থ, যাই হোক)
     if (typeof window.__rerenderFromApi === 'function'){
       try { window.__rerenderFromApi(); } catch(e){}
     }
@@ -2153,51 +2154,16 @@ cats.forEach(function(c){ if (c.key) catLabelMap[c.key] = c.n; });
 
 /* সার্ভিস মূল্য: normal = ওয়াশ= ড্রাই ওয়াশ, iron = শুধু আয়রন
    যেই সার্ভিস null/undefined থাকবে, সেটি অ্যাডমিন বন্ধ রেখেছেন ধরে নিয়ে গ্রাহক তা দেখতে বা বাছাই করতে পারবে না */
-// 🔥 ডিফল্ট পণ্য ডেটা - শুধু fallback হিসেবে
-// 🔥 ডিফল্ট পণ্য ডেটা - শুধু fallback হিসেবে
-const DEFAULT_PRODUCTS = [
-  {t:"Shirt (শার্ট)",icon:"fa-tshirt",cat:"men-wear",services:{normal:10,dry:15,iron:5},img:"assets/ad636740391c.jpg"},
-  {t:"T-Shirt / গেঞ্জি",icon:"fa-tshirt",cat:"men-wear",services:{normal:10,dry:15,iron:5},img:"assets/611d54822ada.jpg"},
-  {t:"Pant (প্যান্ট)",icon:"fa-socks",cat:"men-wear",services:{normal:15,dry:25,iron:6},img:"assets/f4be16c72642.jpg"},
-  {t:"Panjabi (পাঞ্জাবি)",icon:"fa-tshirt",cat:"suits",services:{normal:20,dry:35,iron:8},img:"assets/cbfc8a9a528c.jpg"},
-  {t:"Pajama (পায়জামা)",icon:"fa-socks",cat:"men-wear",services:{normal:12,dry:20,iron:5},img:"assets/f4b3bae70b69.jpg"},
-  {t:"Lungi (লুঙ্গি)",icon:"fa-socks",cat:"men-wear",services:{normal:15,dry:null,iron:6},img:"assets/b22965b11b01.jpg"},
-  {t:"Suit (স্যুট)",icon:"fa-user-tie",cat:"suits",services:{normal:null,dry:120,iron:25},img:"assets/3418fa4ae394.jpg"},
-  {t:"Blazer (ব্লেজার)",icon:"fa-user-tie",cat:"suits",services:{normal:null,dry:100,iron:20},img:"assets/97f94469115d.jpg"},
-  {t:"Coat (কোট)",icon:"fa-user-tie",cat:"suits",services:{normal:null,dry:130,iron:25},img:"assets/808bd5ae24e8.jpg"},
-  {t:"Tie (টাই)",icon:"fa-tint",cat:"suits",services:{normal:null,dry:30,iron:null},img:"assets/9c9c10ace12c.jpg"},
-  {t:"Dress / জামা",icon:"fa-female",cat:"women-wear",services:{normal:35,dry:60,iron:12},img:"assets/c8eef081cab0.jpg"},
-  {t:"Three Piece",icon:"fa-female",cat:"women-wear",services:{normal:40,dry:70,iron:14},img:"assets/9b84bce61058.jpg"},
-  {t:"Saree (শাড়ি)",icon:"fa-female",cat:"women-wear",services:{normal:50,dry:90,iron:20},img:"assets/7cf0ab7e4ddf.jpg"},
-  {t:"Hijab / Orna",icon:"fa-female",cat:"women-wear",services:{normal:10,dry:null,iron:5},img:"assets/13b840fdd77b.jpg"},
-  {t:"Bedsheet (বেডশিট)",icon:"fa-bed",cat:"home-linen",services:{normal:40,dry:null,iron:15},img:"assets/bd6cf69b732c.jpg"},
-  {t:"Curtain (পর্দা)",icon:"fa-bed",cat:"home-linen",services:{normal:60,dry:null,iron:20},img:"assets/e96e7c710224.jpg"},
-  {t:"Sofa Cover (সোফা কভার)",icon:"fa-couch",cat:"home-linen",services:{normal:70,dry:100,iron:null},img:"assets/40406813e26b.jpg"},
-  {t:"Blanket (কম্বল)",icon:"fa-mitten",cat:"winter-wear",services:{normal:150,dry:200,iron:null},img:"assets/02c42aede596.jpg"},
-  {t:"Quilt / কাঁথা",icon:"fa-mitten",cat:"winter-wear",services:{normal:180,dry:250,iron:null},img:"assets/61c839d08ab6.jpg"},
-  {t:"Jacket (জ্যাকেট)",icon:"fa-mitten",cat:"winter-wear",services:{normal:null,dry:90,iron:20},img:"assets/c2ae6f5bd89c.jpg"},
-  {t:"Sweater / Hoodie",icon:"fa-mitten",cat:"winter-wear",services:{normal:40,dry:70,iron:15},img:"assets/c2a1e98fd2b9.jpg"}
-];
+/* পণ্যের নাম/মূল্য এখানে কোথাও হার্ডকোড করা নেই। অ্যাডমিন প্যানেল (MongoDB) থেকে
+   যা যোগ/এডিট/ডিলেট করা হয়, শুধু সেটাই সবসময় এখানে দেখাবে।
+   আগের ভার্সনে ব্রাউজারে জমা থাকা পুরনো snapshot থেকেও যেন ডিফল্ট পণ্য না আসে,
+   তাই সেই কী-টি মুছে দেওয়া হচ্ছে। */
+try { window.localStorage.removeItem('dm_snapshot_products'); } catch (e) { }
+let products = [];
+window.__productsLoaded = false;   // API থেকে পণ্যের তালিকা প্রথমবার আসার পর true হবে
 
-// 🔥 প্রথমে localStorage থেকে চেষ্টা করুন (দ্রুততম লোডিং)
-function initializeProductsFromStorage() {
-  try {
-    var cached = window.localStorage.getItem('dm_snapshot_products');
-    if (cached && cached !== 'null' && cached !== 'undefined') {
-      var parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (e) { }
-  return null;
-}
-
-// 🔥 localStorage থেকে ডেটা পান অথবা API এর জন্য অপেক্ষা করুন
-var cachedProducts = initializeProductsFromStorage();
-let products = cachedProducts && cachedProducts.length > 0 ? cachedProducts : DEFAULT_PRODUCTS;
-
-document.getElementById('categoryRow').innerHTML=cats.map(function(c){
+function renderCategoryRow(){
+  document.getElementById('categoryRow').innerHTML=cats.map(function(c){
   var count = c.key ? products.filter(function(p){ return p.cat === c.key; }).length : products.length;
   return '<a href="'+c.href+'" class="cat-card" style="--cc:'+c.color+'"'
     + (c.key ? ' data-cat="'+c.key+'" onclick="return handleCategoryLinkClick(event,\''+c.key+'\')"' : '')
@@ -2211,6 +2177,8 @@ document.getElementById('categoryRow').innerHTML=cats.map(function(c){
     + '</div>'
     + '</a>';
 }).join('');
+}
+renderCategoryRow();
 
 function serviceLabel(key){
   return key==='normal' ? 'ওয়াশ' : key==='dry' ? 'ড্রাই ওয়াশ' : '';
@@ -2223,6 +2191,15 @@ function renderProducts(){
   var grid = document.getElementById('productsGrid');
   var query = (searchQuery || '').trim().toLowerCase();
 
+  // API থেকে পণ্যের তালিকা আসার আগে কিছু (বিশেষ করে পুরনো/ডিফল্ট ডেটা) দেখানো হবে না
+  if (!window.__productsLoaded){
+    var failed = !!window.__apiFirstLoadDone;
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:50px 16px;color:#999">'
+      + '<i class="fas ' + (failed ? 'fa-exclamation-circle' : 'fa-spinner fa-spin') + '" style="font-size:40px;color:#ddd;display:block;margin-bottom:14px"></i>'
+      + '<p style="font-size:15px">' + (failed ? 'প্রোডাক্ট লোড করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।' : 'প্রোডাক্ট লোড হচ্ছে...') + '</p></div>';
+    return;
+  }
+
   var visibleIdx = products.map((p, idx) => idx).filter(idx => {
     var p = products[idx];
     if (activeCategory !== 'all' && p.cat !== activeCategory) return false;
@@ -2233,7 +2210,7 @@ function renderProducts(){
   if (visibleIdx.length === 0){
     var msg = query
       ? `"${searchQuery}" এর জন্য কোনো প্রোডাক্ট পাওয়া যায়নি।`
-      : 'এই ক্যাটাগরিতে এখনো কোনো প্রোডাক্ট নেই।';
+      : (products.length === 0 ? 'এখনো কোনো প্রোডাক্ট যোগ করা হয়নি।' : 'এই ক্যাটাগরিতে এখনো কোনো প্রোডাক্ট নেই।');
     grid.innerHTML = `
       <div style="grid-column:1/-1;text-align:center;padding:50px 16px;color:#999">
         <i class="fas fa-search" style="font-size:40px;color:#ddd;display:block;margin-bottom:14px"></i>
@@ -2267,59 +2244,32 @@ function renderProducts(){
   }).join('');
 }
 
-// 🔥 ১) প্রথমে localStorage থেকে চেষ্টা করুন (দ্রুততম লোডিং)
-function initializeProductsFromStorage() {
-  try {
-    var cached = window.localStorage.getItem('dm_snapshot_products');
-    if (cached && cached !== 'null' && cached !== 'undefined') {
-      var parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (e) { }
-  return null;
-}
-
-// 🔥 ২) localStorage থেকে ডেটা পান অথবা API এর জন্য অপেক্ষা করুন
-var cachedProducts = initializeProductsFromStorage();
-
-if (cachedProducts && cachedProducts.length > 0) {
-  // localStorage তে ডেটা আছে - সরাসরি রেন্ডার করুন (তাৎক্ষণিক লোডিং)
-  products = cachedProducts.filter(function(p){ return p.enabled !== false; });
+/* পণ্যের তালিকা শুধু API (MongoDB) থেকে আসে। খালি তালিকা এলেও আপডেট হয়,
+   যাতে অ্যাডমিন সব পণ্য ডিলেট করলে ওয়েবসাইট থেকেও সরে যায়।
+   প্রথমবার এবং প্রতি ১০ সেকেন্ডের পোলিংয়ে window.__rerenderFromApi() এটি কল করে। */
+function __applyProductsFromApi(list){
+  products = (Array.isArray(list) ? list : []).filter(function(p){ return p && p.enabled !== false; });
+  window.__productsLoaded = true;
+  renderCategoryRow();
   renderProducts();
-} else {
-  // localStorage তে ডেটা নেই - API এর অপেক্ষা করুন
-  if (typeof window.__dmOnReady === 'function') {
-    window.__dmOnReady(function(apiData) {
-      products = window.__pickApi("products", DEFAULT_PRODUCTS);
-      products = products.filter(function(p){ return p.enabled !== false; });
-      renderProducts();
-    });
-  } else {
-    // ফলব্যাক (পুরনো dm-api.js থাকলে)
-    products = window.__pickApi("products", DEFAULT_PRODUCTS);
-    products = products.filter(function(p){ return p.enabled !== false; });
-    renderProducts();
-  }
 }
 
-// 🔥 ३) API ডেটা আপডেট হলে re-render করুন (সর্বদা নতুন ডেটা প্রতিফলিত করুন)
+// প্রথম রেন্ডার — API-র উত্তর আগেই এসে গিয়ে থাকলে সেটা ব্যবহার, নাহলে "লোড হচ্ছে..."
+if (window.__API_DATA && Array.isArray(window.__API_DATA.products)) {
+  __applyProductsFromApi(window.__API_DATA.products);
+} else {
+  renderProducts();
+}
+
+// (পুরনো dm-api.js থাকলে তার হুকের সাথেও সামঞ্জস্য রাখা হয়েছে)
 if (typeof window.__dmOnReady === 'function') {
   window.__dmOnReady(function(apiData) {
-    if (apiData && apiData.products && Array.isArray(apiData.products) && apiData.products.length > 0) {
-      products = apiData.products.filter(function(p){ return p.enabled !== false; });
-      renderProducts();
-    }
+    if (apiData && Array.isArray(apiData.products)) __applyProductsFromApi(apiData.products);
   });
 }
-
 if (typeof window.__dmOnData === 'function') {
   window.__dmOnData(function(apiData) {
-    if (apiData && apiData.products && Array.isArray(apiData.products) && apiData.products.length > 0) {
-      products = apiData.products.filter(function(p){ return p.enabled !== false; });
-      renderProducts();
-    }
+    if (apiData && Array.isArray(apiData.products)) __applyProductsFromApi(apiData.products);
   });
 }
 
@@ -3518,7 +3468,7 @@ function closeServiceDetailModal(){
   var ov = document.getElementById('serviceDetailModalOverlay');
   if(ov){ ov.addEventListener('click', function(e){ if(e.target===ov) closeServiceDetailModal(); }); }
 })();
-renderServiceGallery(); window.addEventListener("hashchange", function(){ if(location.hash==="#/services") renderServiceGallery(); }); window.__rerenderFromApi = function(){ try{ if(window.__API_DATA.services && Array.isArray(window.__API_DATA.services) && window.__API_DATA.services.length){ SERVICES_LIST = window.__API_DATA.services.filter(function(s){ return s.enabled !== false; }); renderServiceGallery(); } if(window.__API_DATA.products && Array.isArray(window.__API_DATA.products) && window.__API_DATA.products.length){ products = window.__API_DATA.products.filter(function(p){ return p.enabled !== false; }); if(typeof renderProducts==="function") renderProducts(); } if(window.__API_DATA.categories && Array.isArray(window.__API_DATA.categories) && window.__API_DATA.categories.length){ if(typeof window.cats!=="undefined"){} } if(typeof window.__applyHeroassets==="function") window.__applyHeroassets(); }catch(e){ console.warn("rerender failed", e); } };
+renderServiceGallery(); window.addEventListener("hashchange", function(){ if(location.hash==="#/services") renderServiceGallery(); }); window.__rerenderFromApi = function(){ try{ if(window.__API_DATA.services && Array.isArray(window.__API_DATA.services) && window.__API_DATA.services.length){ SERVICES_LIST = window.__API_DATA.services.filter(function(s){ return s.enabled !== false; }); renderServiceGallery(); } if(Array.isArray(window.__API_DATA.products)){ __applyProductsFromApi(window.__API_DATA.products); } else if(window.__apiFirstLoadDone && !window.__productsLoaded && typeof renderProducts==="function"){ renderProducts(); } if(window.__API_DATA.categories && Array.isArray(window.__API_DATA.categories) && window.__API_DATA.categories.length){ if(typeof window.cats!=="undefined"){} } if(typeof window.__applyHeroassets==="function") window.__applyHeroassets(); }catch(e){ console.warn("rerender failed", e); } };
 </script>
 
 

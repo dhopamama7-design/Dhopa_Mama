@@ -82,6 +82,7 @@ async function connectMongo(retry = 0) {
     mongoLastError = null;
     console.log('✅ MongoDB connected');
     try { await seedDefaultsIfEmpty(); } catch (e) { console.error('Seeding error:', e.message); }
+    try { await purgeLegacyDefaultProducts(); } catch (e) { console.error('Legacy product purge error:', e.message); }
   } catch (err) {
     mongoLastError = err.message;
     console.error('❌ MongoDB error:', err.message);
@@ -119,14 +120,20 @@ const Settings   = mongoose.model('Settings', new mongoose.Schema({
   data: { type: mongoose.Schema.Types.Mixed, default: { bkash: '01700-000000', nagad: '01800-000000' } }
 }, { timestamps: true }), 'settings');
 
-/* ── Seed default categories / products / services when DB is empty ── */
+/* মাইগ্রেশন-চিহ্ন রাখার ছোট কালেকশন */
+const Meta = mongoose.model('Meta', new mongoose.Schema({
+  key:  { type: String, unique: true },
+  data: { type: mongoose.Schema.Types.Mixed, default: {} }
+}, { timestamps: true }), 'meta');
+
+/* ── Seed default categories / services when DB is empty ──
+   পণ্য (products) আর কখনোই ডিফল্ট থেকে সিড করা হয় না — শুধু অ্যাডমিন প্যানেল থেকে যা যোগ হবে তাই থাকবে। */
 async function seedDefaultsIfEmpty() {
   let defaults;
   try { defaults = require('./defaults'); }
   catch (e) { console.warn('defaults.js not found — seeding skipped'); return; }
   const pairs = [
     { Model: Categories, name: 'categories', data: defaults.categories },
-    { Model: Products,   name: 'products',   data: defaults.products   },
     { Model: Services,   name: 'services',   data: defaults.services   }
   ];
   for (const { Model, name, data } of pairs) {
@@ -143,6 +150,58 @@ async function seedDefaultsIfEmpty() {
     await Settings.create({ key: 'main' });
     console.log('🌱 Seeded default settings');
   }
+}
+
+/* ── আগের ভার্সনে সিড হয়ে ডাটাবেসে জমে থাকা ডিফল্ট পণ্য একবার মুছে ফেলা ──
+   শুধু সেগুলোই মোছা হয় যেগুলোর নাম + ওয়াশ/ড্রাই/আয়রন মূল্য হুবহু আগের ডিফল্টের সাথে মেলে
+   (অর্থাৎ অ্যাডমিন যেগুলো এডিট করেননি)। এডিট করা বা নতুন যোগ করা পণ্য অক্ষত থাকে।
+   একবার চলার পর Meta কালেকশনে চিহ্ন থাকে, তাই পরে আর চলে না। */
+const LEGACY_DEFAULT_PRODUCTS = [   // [নাম, ওয়াশ, ড্রাই ওয়াশ, আয়রন]
+  ["Shirt (শার্ট)", 10, 15, 5],
+  ["T-Shirt / গেঞ্জি", 10, 15, 5],
+  ["Pant (প্যান্ট)", 15, 25, 6],
+  ["Panjabi (পাঞ্জাবি)", 20, 35, 8],
+  ["Pajama (পায়জামা)", 12, 20, 5],
+  ["Lungi (লুঙ্গি)", 15, null, 6],
+  ["Suit (স্যুট)", null, 120, 25],
+  ["Blazer (ব্লেজার)", null, 100, 20],
+  ["Coat (কোট)", null, 130, 25],
+  ["Tie (টাই)", null, 30, null],
+  ["Dress / জামা", 35, 60, 12],
+  ["Three Piece", 40, 70, 14],
+  ["Saree (শাড়ি)", 50, 90, 20],
+  ["Hijab / Orna", 10, null, 5],
+  ["Bedsheet (বেডশিট)", 40, null, 15],
+  ["Curtain (পর্দা)", 60, null, 20],
+  ["Sofa Cover (সোফা কভার)", 70, 100, null],
+  ["Blanket (কম্বল)", 150, 200, null],
+  ["Quilt / কাঁথা", 180, 250, null],
+  ["Jacket (জ্যাকেট)", null, 90, 20],
+  ["Sweater / Hoodie", 40, 70, 15]
+];
+function isUntouchedLegacyDefault(p) {
+  if (!p || typeof p.t !== 'string') return false;
+  const row = LEGACY_DEFAULT_PRODUCTS.find(r => r[0] === p.t);
+  if (!row) return false;
+  const sv = p.services || {};
+  const num = v => (v === undefined || v === null || v === '') ? null : Number(v);
+  return num(sv.normal) === row[1] && num(sv.dry) === row[2] && num(sv.iron) === row[3]
+      && (p.discountPrice === undefined || p.discountPrice === null || p.discountPrice === '');
+}
+async function purgeLegacyDefaultProducts() {
+  const MARK = 'legacy-default-products-purged';
+  if (await Meta.findOne({ key: MARK })) return;
+  const doc = await Products.findOne({ key: 'main' });
+  let removed = 0;
+  if (doc && Array.isArray(doc.data) && doc.data.length) {
+    const kept = doc.data.filter(p => !isUntouchedLegacyDefault(p));
+    removed = doc.data.length - kept.length;
+    if (removed > 0) {
+      await Products.findOneAndUpdate({ key: 'main' }, { $set: { data: kept } });
+    }
+  }
+  await Meta.findOneAndUpdate({ key: MARK }, { $set: { data: { removed, at: new Date() } } }, { upsert: true });
+  console.log(`🧹 Removed ${removed} untouched legacy default product(s)`);
 }
 
 const OrderSchema = new mongoose.Schema({
